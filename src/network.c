@@ -588,50 +588,65 @@ float *network_predict_image(network *net, image im)
 int network_width(network *net){return net->w;}
 int network_height(network *net){return net->h;}
 
-matrix network_predict_data_multi(network *net, data test, int n)
+static void prepare_batch_input(data test, float *X, int batch_start, int batch_size)
 {
-    int i,j,b,m;
-    int k = net->outputs;
-    matrix pred = make_matrix(test.X.rows, k);
-    float *X = calloc(net->batch*test.X.rows, sizeof(float));
-    for(i = 0; i < test.X.rows; i += net->batch){
-        for(b = 0; b < net->batch; ++b){
-            if(i+b == test.X.rows) break;
-            memcpy(X+b*test.X.cols, test.X.vals[i+b], test.X.cols*sizeof(float));
-        }
-        for(m = 0; m < n; ++m){
-            float *out = network_predict(net, X);
-            for(b = 0; b < net->batch; ++b){
-                if(i+b == test.X.rows) break;
-                for(j = 0; j < k; ++j){
-                    pred.vals[i+b][j] += out[j+b*k]/n;
-                }
-            }
+    for(int b = 0; b < batch_size; ++b){
+        if(batch_start + b >= test.X.rows) break;
+        memcpy(X + b*test.X.cols, test.X.vals[batch_start + b], test.X.cols*sizeof(float));
+    }
+}
+
+static void accumulate_predictions(matrix pred, float *out, int batch_start, int batch_size, int outputs, float scale)
+{
+    for(int b = 0; b < batch_size; ++b){
+        if(batch_start + b >= pred.rows) break;
+        for(int j = 0; j < outputs; ++j){
+            pred.vals[batch_start + b][j] += out[j + b*outputs] * scale;
         }
     }
+}
+
+matrix network_predict_data_multi(network *net, data test, int n)
+{
+    int k = net->outputs;
+    matrix pred = make_matrix(test.X.rows, k);
+    float *X = calloc(net->batch * test.X.rows, sizeof(float));
+    
+    for(int i = 0; i < test.X.rows; i += net->batch){
+        prepare_batch_input(test, X, i, net->batch);
+        
+        for(int m = 0; m < n; ++m){
+            float *out = network_predict(net, X);
+            accumulate_predictions(pred, out, i, net->batch, k, 1.0/n);
+        }
+    }
+    
     free(X);
     return pred;   
 }
 
-matrix network_predict_data(network *net, data test)
+static void copy_predictions(matrix pred, float *out, int batch_start, int batch_size, int outputs)
 {
-    int i,j,b;
-    int k = net->outputs;
-    matrix pred = make_matrix(test.X.rows, k);
-    float *X = calloc(net->batch*test.X.cols, sizeof(float));
-    for(i = 0; i < test.X.rows; i += net->batch){
-        for(b = 0; b < net->batch; ++b){
-            if(i+b == test.X.rows) break;
-            memcpy(X+b*test.X.cols, test.X.vals[i+b], test.X.cols*sizeof(float));
-        }
-        float *out = network_predict(net, X);
-        for(b = 0; b < net->batch; ++b){
-            if(i+b == test.X.rows) break;
-            for(j = 0; j < k; ++j){
-                pred.vals[i+b][j] = out[j+b*k];
-            }
+    for(int b = 0; b < batch_size; ++b){
+        if(batch_start + b >= pred.rows) break;
+        for(int j = 0; j < outputs; ++j){
+            pred.vals[batch_start + b][j] = out[j + b*outputs];
         }
     }
+}
+
+matrix network_predict_data(network *net, data test)
+{
+    int k = net->outputs;
+    matrix pred = make_matrix(test.X.rows, k);
+    float *X = calloc(net->batch * test.X.cols, sizeof(float));
+    
+    for(int i = 0; i < test.X.rows; i += net->batch){
+        prepare_batch_input(test, X, i, net->batch);
+        float *out = network_predict(net, X);
+        copy_predictions(pred, out, i, net->batch, k);
+    }
+    
     free(X);
     return pred;   
 }

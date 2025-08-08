@@ -236,76 +236,90 @@ image **load_alphabet()
     return alphabets;
 }
 
+static int build_detection_label(detection det, float thresh, char **names, int classes, char *labelstr, size_t labelsize)
+{
+    int class = -1;
+    labelstr[0] = '\0';
+    
+    for(int j = 0; j < classes; ++j){
+        if (det.prob[j] > thresh){
+            if (class < 0) {
+                strncat(labelstr, names[j], labelsize - strlen(labelstr) - 1);
+                class = j;
+            } else {
+                strncat(labelstr, ", ", labelsize - strlen(labelstr) - 1);
+                strncat(labelstr, names[j], labelsize - strlen(labelstr) - 1);
+            }
+            printf("%s: %.0f%%\n", names[j], det.prob[j]*100);
+        }
+    }
+    return class;
+}
+
+static void get_detection_colors(int class, int classes, float *red, float *green, float *blue)
+{
+    int offset = class*123457 % classes;
+    *red = get_color(2, offset, classes);
+    *green = get_color(1, offset, classes);
+    *blue = get_color(0, offset, classes);
+}
+
+static void get_box_coords(box b, int im_w, int im_h, int *left, int *right, int *top, int *bot)
+{
+    *left  = (b.x - b.w/2.) * im_w;
+    *right = (b.x + b.w/2.) * im_w;
+    *top   = (b.y - b.h/2.) * im_h;
+    *bot   = (b.y + b.h/2.) * im_h;
+    
+    if(*left < 0) *left = 0;
+    if(*right > im_w-1) *right = im_w-1;
+    if(*top < 0) *top = 0;
+    if(*bot > im_h-1) *bot = im_h-1;
+}
+
+static void draw_detection_mask(image im, float *mask_data, box b, int left, int top)
+{
+    if (!mask_data) return;
+    
+    image mask = float_to_image(14, 14, 1, mask_data);
+    image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
+    image tmask = threshold_image(resized_mask, .5);
+    embed_image(tmask, im, left, top);
+    
+    free_image(mask);
+    free_image(resized_mask);
+    free_image(tmask);
+}
+
+static void draw_detection_label(image im, image **alphabet, char *labelstr, int top, int left, int width, float *rgb)
+{
+    if (!alphabet) return;
+    
+    image label = get_label(alphabet, labelstr, (im.h*.03));
+    draw_label(im, top + width, left, label, rgb);
+    free_image(label);
+}
+
 void draw_detections(image im, detection *dets, int num, float thresh, char **names, image **alphabet, int classes)
 {
-    int i,j;
-
-    for(i = 0; i < num; ++i){
-        char labelstr[4096] = {0};
-        int class = -1;
-        for(j = 0; j < classes; ++j){
-            if (dets[i].prob[j] > thresh){
-                if (class < 0) {
-                    strncat(labelstr, names[j], sizeof(labelstr) - strlen(labelstr) - 1);
-                    class = j;
-                } else {
-                    strncat(labelstr, ", ", sizeof(labelstr) - strlen(labelstr) - 1);
-                    strncat(labelstr, names[j], sizeof(labelstr) - strlen(labelstr) - 1);
-                }
-                printf("%s: %.0f%%\n", names[j], dets[i].prob[j]*100);
-            }
-        }
-        if(class >= 0){
-            int width = im.h * .006;
-
-            /*
-               if(0){
-               width = pow(prob, 1./2.)*10+1;
-               alphabet = 0;
-               }
-             */
-
-            //printf("%d %s: %.0f%%\n", i, names[class], prob*100);
-            int offset = class*123457 % classes;
-            float red = get_color(2,offset,classes);
-            float green = get_color(1,offset,classes);
-            float blue = get_color(0,offset,classes);
-            float rgb[3];
-
-            //width = prob*20+2;
-
-            rgb[0] = red;
-            rgb[1] = green;
-            rgb[2] = blue;
-            box b = dets[i].bbox;
-            //printf("%f %f %f %f\n", b.x, b.y, b.w, b.h);
-
-            int left  = (b.x-b.w/2.)*im.w;
-            int right = (b.x+b.w/2.)*im.w;
-            int top   = (b.y-b.h/2.)*im.h;
-            int bot   = (b.y+b.h/2.)*im.h;
-
-            if(left < 0) left = 0;
-            if(right > im.w-1) right = im.w-1;
-            if(top < 0) top = 0;
-            if(bot > im.h-1) bot = im.h-1;
-
-            draw_box_width(im, left, top, right, bot, width, red, green, blue);
-            if (alphabet) {
-                image label = get_label(alphabet, labelstr, (im.h*.03));
-                draw_label(im, top + width, left, label, rgb);
-                free_image(label);
-            }
-            if (dets[i].mask){
-                image mask = float_to_image(14, 14, 1, dets[i].mask);
-                image resized_mask = resize_image(mask, b.w*im.w, b.h*im.h);
-                image tmask = threshold_image(resized_mask, .5);
-                embed_image(tmask, im, left, top);
-                free_image(mask);
-                free_image(resized_mask);
-                free_image(tmask);
-            }
-        }
+    for(int i = 0; i < num; ++i){
+        char labelstr[4096];
+        int class = build_detection_label(dets[i], thresh, names, classes, labelstr, sizeof(labelstr));
+        
+        if(class < 0) continue;
+        
+        float red, green, blue;
+        get_detection_colors(class, classes, &red, &green, &blue);
+        
+        int left, right, top, bot;
+        get_box_coords(dets[i].bbox, im.w, im.h, &left, &right, &top, &bot);
+        
+        int width = im.h * .006;
+        draw_box_width(im, left, top, right, bot, width, red, green, blue);
+        
+        float rgb[3] = {red, green, blue};
+        draw_detection_label(im, alphabet, labelstr, top, left, width, rgb);
+        draw_detection_mask(im, dets[i].mask, dets[i].bbox, left, top);
     }
 }
 

@@ -587,29 +587,37 @@ void fill_hierarchy(float *truth, int k, tree *hierarchy)
     }
 }
 
+static void replace_image_extensions_to_txt(char *path)
+{
+    static const char *extensions[] = {
+        ".BMP", ".JPEG", ".JPG", ".JPeG", ".Jpeg",
+        ".PNG", ".TIF", ".bmp", ".jpeg", ".jpg",
+        ".png", ".tif", NULL
+    };
+    
+    for (int i = 0; extensions[i] != NULL; i++) {
+        find_replace(path, extensions[i], ".txt", path);
+    }
+}
+
+static char* get_label_path(char *image_path, char *result)
+{
+    find_replace(image_path, "images", "labels", result);
+    find_replace(result, "JPEGImages", "labels", result);
+    replace_image_extensions_to_txt(result);
+    return result;
+}
+
 matrix load_regression_labels_paths(char **paths, int n, int k)
 {
     matrix y = make_matrix(n, k);
-    int i,j;
-    for(i = 0; i < n; ++i){
+    
+    for(int i = 0; i < n; ++i){
         char labelpath[4096];
-        find_replace(paths[i], "images", "labels", labelpath);
-        find_replace(labelpath, "JPEGImages", "labels", labelpath);
-        find_replace(labelpath, ".BMP", ".txt", labelpath);
-        find_replace(labelpath, ".JPEG", ".txt", labelpath);
-        find_replace(labelpath, ".JPG", ".txt", labelpath);
-        find_replace(labelpath, ".JPeG", ".txt", labelpath);
-        find_replace(labelpath, ".Jpeg", ".txt", labelpath);
-        find_replace(labelpath, ".PNG", ".txt", labelpath);
-        find_replace(labelpath, ".TIF", ".txt", labelpath);
-        find_replace(labelpath, ".bmp", ".txt", labelpath);
-        find_replace(labelpath, ".jpeg", ".txt", labelpath);
-        find_replace(labelpath, ".jpg", ".txt", labelpath);
-        find_replace(labelpath, ".png", ".txt", labelpath);
-        find_replace(labelpath, ".tif", ".txt", labelpath);
-
+        get_label_path(paths[i], labelpath);
+        
         FILE *file = fopen(labelpath, "r");
-        for(j = 0; j < k; ++j){
+        for(int j = 0; j < k; ++j){
             fscanf(file, "%f", &(y.vals[i][j]));
         }
         fclose(file);
@@ -916,66 +924,82 @@ data load_data_region(int n, char **paths, int m, int w, int h, int size, int cl
     return d;
 }
 
+static void load_compare_images(char **paths, int i, float *data, int w, int h)
+{
+    image im1 = load_image_color(paths[i*2], w, h);
+    image im2 = load_image_color(paths[i*2+1], w, h);
+    
+    memcpy(data, im1.data, h*w*3*sizeof(float));
+    memcpy(data + h*w*3, im2.data, h*w*3*sizeof(float));
+    
+    free_image(im1);
+    free_image(im2);
+}
+
+static void read_iou_from_file(FILE *fp, float *labels, int offset)
+{
+    int id;
+    float iou;
+    while(fscanf(fp, "%d %f", &id, &iou) == 2){
+        if (labels[offset + id] < iou) {
+            labels[offset + id] = iou;
+        }
+    }
+}
+
+static void process_compare_labels(float *labels, int classes)
+{
+    for (int j = 0; j < classes; ++j){
+        float val1 = labels[2*j];
+        float val2 = labels[2*j+1];
+        
+        if (val1 > .5 && val2 < .5){
+            labels[2*j] = 1;
+            labels[2*j+1] = 0;
+        } else if (val1 < .5 && val2 > .5){
+            labels[2*j] = 0;
+            labels[2*j+1] = 1;
+        } else {
+            labels[2*j] = SECRET_NUM;
+            labels[2*j+1] = SECRET_NUM;
+        }
+    }
+}
+
 data load_data_compare(int n, char **paths, int m, int classes, int w, int h)
 {
     if(m) paths = get_random_paths(paths, 2*n, m);
-    int i,j;
+    
     data d = {0};
     d.shallow = 0;
-
     d.X.rows = n;
     d.X.vals = calloc(d.X.rows, sizeof(float*));
     d.X.cols = h*w*6;
-
-    int k = 2*(classes);
-    d.y = make_matrix(n, k);
-    for(i = 0; i < n; ++i){
-        image im1 = load_image_color(paths[i*2],   w, h);
-        image im2 = load_image_color(paths[i*2+1], w, h);
-
+    d.y = make_matrix(n, 2*classes);
+    
+    for(int i = 0; i < n; ++i){
         d.X.vals[i] = calloc(d.X.cols, sizeof(float));
-        memcpy(d.X.vals[i],         im1.data, h*w*3*sizeof(float));
-        memcpy(d.X.vals[i] + h*w*3, im2.data, h*w*3*sizeof(float));
-
-        int id;
-        float iou;
-
-        char imlabel1[4096];
-        char imlabel2[4096];
-        find_replace(paths[i*2],   "imgs", "labels", imlabel1);
-        find_replace(imlabel1, "jpg", "txt", imlabel1);
-        FILE *fp1 = fopen(imlabel1, "r");
-
-        while(fscanf(fp1, "%d %f", &id, &iou) == 2){
-            if (d.y.vals[i][2*id] < iou) d.y.vals[i][2*id] = iou;
-        }
-
-        find_replace(paths[i*2+1], "imgs", "labels", imlabel2);
-        find_replace(imlabel2, "jpg", "txt", imlabel2);
-        FILE *fp2 = fopen(imlabel2, "r");
-
-        while(fscanf(fp2, "%d %f", &id, &iou) == 2){
-            if (d.y.vals[i][2*id + 1] < iou) d.y.vals[i][2*id + 1] = iou;
-        }
-
-        for (j = 0; j < classes; ++j){
-            if (d.y.vals[i][2*j] > .5 &&  d.y.vals[i][2*j+1] < .5){
-                d.y.vals[i][2*j] = 1;
-                d.y.vals[i][2*j+1] = 0;
-            } else if (d.y.vals[i][2*j] < .5 &&  d.y.vals[i][2*j+1] > .5){
-                d.y.vals[i][2*j] = 0;
-                d.y.vals[i][2*j+1] = 1;
-            } else {
-                d.y.vals[i][2*j]   = SECRET_NUM;
-                d.y.vals[i][2*j+1] = SECRET_NUM;
-            }
-        }
+        load_compare_images(paths, i, d.X.vals[i], w, h);
+        
+        char label_path[4096];
+        
+        // Process first image labels
+        find_replace(paths[i*2], "imgs", "labels", label_path);
+        find_replace(label_path, "jpg", "txt", label_path);
+        FILE *fp1 = fopen(label_path, "r");
+        read_iou_from_file(fp1, d.y.vals[i], 0);
         fclose(fp1);
+        
+        // Process second image labels
+        find_replace(paths[i*2+1], "imgs", "labels", label_path);
+        find_replace(label_path, "jpg", "txt", label_path);
+        FILE *fp2 = fopen(label_path, "r");
+        read_iou_from_file(fp2, d.y.vals[i], 1);
         fclose(fp2);
-
-        free_image(im1);
-        free_image(im2);
+        
+        process_compare_labels(d.y.vals[i], classes);
     }
+    
     if(m) free(paths);
     return d;
 }
