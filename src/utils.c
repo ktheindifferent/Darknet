@@ -46,10 +46,13 @@ int *read_intlist(char *gpu_list, int *ngpus, int d)
         gpus = calloc(*ngpus, sizeof(int));
         for(i = 0; i < *ngpus; ++i){
             gpus[i] = atoi(gpu_list);
-            gpu_list = strchr(gpu_list, ',')+1;
+            char *next = strchr(gpu_list, ',');
+            if (next && i < *ngpus - 1) {
+                gpu_list = next + 1;
+            }
         }
     } else {
-        gpus = calloc(1, sizeof(float));
+        gpus = calloc(1, sizeof(int));
         *gpus = d;
         *ngpus = 1;
     }
@@ -260,6 +263,10 @@ void error(const char *s)
 unsigned char *read_file(char *filename)
 {
     FILE *fp = fopen(filename, "rb");
+    if (!fp) {
+        fprintf(stderr, "Cannot open file: %s\n", filename);
+        return NULL;
+    }
     size_t size;
 
     fseek(fp, 0, SEEK_END); 
@@ -267,6 +274,10 @@ unsigned char *read_file(char *filename)
     fseek(fp, 0, SEEK_SET); 
 
     unsigned char *text = calloc(size+1, sizeof(char));
+    if (!text) {
+        fclose(fp);
+        return NULL;
+    }
     fread(text, 1, size, fp);
     fclose(fp);
     return text;

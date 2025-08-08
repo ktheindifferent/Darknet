@@ -58,14 +58,14 @@ void train_compare(char *cfgfile, char *weightfile)
         free_data(train);
         if(i%100 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d_minor_%d.weights",backup_directory,base, epoch, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d_minor_%d.weights",backup_directory,base, epoch, i);
             save_weights(net, buff);
         }
         if(*net.seen/N > epoch){
             epoch = *net.seen/N;
             i = 0;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights",backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights",backup_directory,base, epoch);
             save_weights(net, buff);
             if(epoch%22 == 0) net.learning_rate *= .1;
         }
