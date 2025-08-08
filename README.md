@@ -1,9 +1,105 @@
-![Darknet Logo](http://pjreddie.com/media/files/darknet-black-small.png)
+```
+     ██████╗  █████╗ ██████╗ ██╗  ██╗███╗   ██╗███████╗████████╗
+     ██╔══██╗██╔══██╗██╔══██╗██║ ██╔╝████╗  ██║██╔════╝╚══██╔══╝
+     ██║  ██║███████║██████╔╝█████╔╝ ██╔██╗ ██║█████╗     ██║   
+     ██║  ██║██╔══██║██╔══██╗██╔═██╗ ██║╚██╗██║██╔══╝     ██║   
+     ██████╔╝██║  ██║██║  ██║██║  ██╗██║ ╚████║███████╗   ██║   
+     ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚══════╝   ╚═╝   
+                                                                  
+     Neural Network Framework | Real-time Object Detection        
+```
 
 # Darknet #
 Darknet is an open source neural network framework written in C and CUDA. It is fast, easy to install, and supports CPU and GPU computation.
 
 **Discord** invite link for for communication and questions: https://discord.gg/zSq8rtW
+
+## Quick Start
+
+### Compilation
+
+1. **Clone the repository:**
+   ```bash
+   git clone https://github.com/AlexeyAB/darknet.git
+   cd darknet
+   ```
+
+2. **Configure build options** (edit `Makefile`):
+   - `GPU=1` to build with CUDA support (requires CUDA installation)
+   - `CUDNN=1` to build with cuDNN support (requires cuDNN installation)
+   - `OPENCV=1` to build with OpenCV support for improved image/video processing
+   - `OPENMP=1` to build with OpenMP support for CPU parallelization
+   - `DEBUG=1` for debug build with symbols
+
+3. **Compile:**
+   ```bash
+   make
+   ```
+
+   This will create:
+   - `darknet` - the main executable
+   - `libdarknet.so` - shared library for use in other projects
+   - `libdarknet.a` - static library
+
+### Testing with Sample Data
+
+The repository includes sample images in the `data/` directory for quick testing:
+
+1. **Test object detection with pre-trained weights** (download required):
+   ```bash
+   # Download YOLOv3 weights
+   wget https://pjreddie.com/media/files/yolov3.weights
+   
+   # Run detection on sample images
+   ./darknet detect cfg/yolov3.cfg yolov3.weights data/dog.jpg
+   ./darknet detect cfg/yolov3.cfg yolov3.weights data/horses.jpg
+   ./darknet detect cfg/yolov3.cfg yolov3.weights data/person.jpg
+   ```
+
+2. **Test with YOLOv3-tiny (faster, less accurate):**
+   ```bash
+   # Download YOLOv3-tiny weights
+   wget https://pjreddie.com/media/files/yolov3-tiny.weights
+   
+   # Run detection
+   ./darknet detect cfg/yolov3-tiny.cfg yolov3-tiny.weights data/dog.jpg
+   ```
+
+3. **Batch processing multiple images:**
+   ```bash
+   ./darknet detector test cfg/coco.data cfg/yolov3.cfg yolov3.weights
+   # Enter image paths when prompted, or create a list file
+   ```
+
+4. **Real-time detection with webcam** (requires OpenCV):
+   ```bash
+   ./darknet detector demo cfg/coco.data cfg/yolov3.cfg yolov3.weights
+   ```
+
+5. **Python integration:**
+   ```python
+   # Using the Python wrapper
+   python3 python/darknet.py
+   ```
+
+### Available Test Images
+
+Sample images included in `data/`:
+- `dog.jpg` - Dog and bicycle detection
+- `eagle.jpg` - Bird detection
+- `giraffe.jpg` - Animal detection
+- `horses.jpg` - Multiple object detection
+- `kite.jpg` - Person and kite detection
+- `person.jpg` - Person detection
+- `scream.jpg` - Artistic image testing
+
+### Configuration Files
+
+The `cfg/` directory contains network configurations for various models:
+- `yolov3.cfg` - YOLOv3 full model
+- `yolov3-tiny.cfg` - Lightweight version
+- `yolov3-spp.cfg` - YOLOv3 with Spatial Pyramid Pooling
+- Various other architectures (ResNet, DenseNet, etc.)
 
 ## YOLOv7: 
 
