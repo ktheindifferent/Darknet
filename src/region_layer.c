@@ -155,34 +155,49 @@ int entry_index(layer l, int batch, int location, int entry)
     return batch*l.outputs + n*l.w*l.h*(l.coords+l.classes+1) + entry*l.w*l.h + loc;
 }
 
+static void apply_activations(const layer l, int batch)
+{
+    for (int b = 0; b < batch; ++b){
+        for(int n = 0; n < l.n; ++n){
+            int index = entry_index(l, b, n*l.w*l.h, 0);
+            activate_array(l.output + index, 2*l.w*l.h, LOGISTIC);
+            
+            index = entry_index(l, b, n*l.w*l.h, l.coords);
+            if(!l.background) activate_array(l.output + index, l.w*l.h, LOGISTIC);
+            
+            index = entry_index(l, b, n*l.w*l.h, l.coords + 1);
+            if(!l.softmax && !l.softmax_tree) {
+                activate_array(l.output + index, l.classes*l.w*l.h, LOGISTIC);
+            }
+        }
+    }
+}
+
+static void apply_softmax(const layer l, network net)
+{
+    if (l.softmax_tree){
+        int count = l.coords + 1;
+        for (int i = 0; i < l.softmax_tree->groups; ++i) {
+            int group_size = l.softmax_tree->group_size[i];
+            softmax_cpu(net.input + count, group_size, l.batch, l.inputs, 
+                       l.n*l.w*l.h, 1, l.n*l.w*l.h, l.temperature, l.output + count);
+            count += group_size;
+        }
+    } else if (l.softmax){
+        int index = entry_index(l, 0, 0, l.coords + !l.background);
+        softmax_cpu(net.input + index, l.classes + l.background, l.batch*l.n, 
+                   l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output + index);
+    }
+}
+
 void forward_region_layer(const layer l, network net)
 {
     int i,j,b,t,n;
     memcpy(l.output, net.input, l.outputs*l.batch*sizeof(float));
 
 #ifndef GPU
-    for (b = 0; b < l.batch; ++b){
-        for(n = 0; n < l.n; ++n){
-            int index = entry_index(l, b, n*l.w*l.h, 0);
-            activate_array(l.output + index, 2*l.w*l.h, LOGISTIC);
-            index = entry_index(l, b, n*l.w*l.h, l.coords);
-            if(!l.background) activate_array(l.output + index,   l.w*l.h, LOGISTIC);
-            index = entry_index(l, b, n*l.w*l.h, l.coords + 1);
-            if(!l.softmax && !l.softmax_tree) activate_array(l.output + index, l.classes*l.w*l.h, LOGISTIC);
-        }
-    }
-    if (l.softmax_tree){
-        int i;
-        int count = l.coords + 1;
-        for (i = 0; i < l.softmax_tree->groups; ++i) {
-            int group_size = l.softmax_tree->group_size[i];
-            softmax_cpu(net.input + count, group_size, l.batch, l.inputs, l.n*l.w*l.h, 1, l.n*l.w*l.h, l.temperature, l.output + count);
-            count += group_size;
-        }
-    } else if (l.softmax){
-        int index = entry_index(l, 0, 0, l.coords + !l.background);
-        softmax_cpu(net.input + index, l.classes + l.background, l.batch*l.n, l.inputs/l.n, l.w*l.h, 1, l.w*l.h, 1, l.output + index);
-    }
+    apply_activations(l, l.batch);
+    apply_softmax(l, net);
 #endif
 
     memset(l.delta, 0, l.outputs * l.batch * sizeof(float));
