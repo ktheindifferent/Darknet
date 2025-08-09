@@ -242,7 +242,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
             display_in_thread(0);
         }else{
             char name[256];
-            sprintf(name, "%s_%08d", prefix, count);
+            snprintf(name, sizeof(name), "%s_%08d", prefix, count);
             save_image(buff[(buff_index + 1)%3], name);
         }
         pthread_join(fetch_thread, 0);
@@ -331,7 +331,7 @@ if(!prefix){
     display_in_thread(0);
 }else{
     char name[256];
-    sprintf(name, "%s_%08d", prefix, count);
+    snprintf(name, sizeof(name), "%s_%08d", prefix, count);
     save_image(buff[(buff_index + 1)%3], name);
 }
 pthread_join(fetch_thread, 0);

@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include "utils.h"
+#include "constants.h"
 
 
 /*
@@ -68,9 +69,16 @@ int *read_map(char *filename)
     if(!file) file_error(filename);
     while((str=fgetl(file))){
         ++n;
-        map = realloc(map, n*sizeof(int));
+        int *new_map = realloc(map, n*sizeof(int));
+        if(!new_map) {
+            free(map);
+            fclose(file);
+            error("Failed to allocate memory in read_intlist");
+        }
+        map = new_map;
         map[n-1] = atoi(str);
     }
+    fclose(file);
     return map;
 }
 
@@ -216,20 +224,20 @@ void pm(int M, int N, float *A)
     printf("\n");
 }
 
-void find_replace(char *str, char *orig, char *rep, char *output)
+void find_replace(char *str, const char *orig, char *rep, char *output)
 {
-    char buffer[4096] = {0};
+    char buffer[STRING_BUFFER_SIZE] = {0};
     char *p;
 
-    sprintf(buffer, "%s", str);
+    snprintf(buffer, sizeof(buffer), "%s", str);
     if(!(p = strstr(buffer, orig))){  // Is 'orig' even in 'str'?
-        sprintf(output, "%s", str);
+        snprintf(output, STRING_BUFFER_SIZE, "%s", str);
         return;
     }
 
     *p = '\0';
 
-    sprintf(output, "%s%s%s", buffer, rep, p+strlen(orig));
+    snprintf(output, STRING_BUFFER_SIZE, "%s%s%s", buffer, rep, p+strlen(orig));
 }
 
 float sec(clock_t clocks)

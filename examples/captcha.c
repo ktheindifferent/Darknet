@@ -102,7 +102,8 @@ void test_captcha(char *cfgfile, char *weightfile, char *filename)
     int indexes[26];
     while(1){
         if(filename){
-            strncpy(input, filename, 256);
+            strncpy(input, filename, 255);
+            input[255] = '\0';
         }else{
             //printf("Enter Image Path: ");
             //fflush(stdout);

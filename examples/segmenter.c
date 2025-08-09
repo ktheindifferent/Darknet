@@ -139,7 +139,8 @@ void predict_segmenter(char *datafile, char *cfg, char *weights, char *filename)
     char *input = buff;
     while(1){
         if(filename){
-            strncpy(input, filename, 256);
+            strncpy(input, filename, 255);
+            input[255] = '\0';
         }else{
             printf("Enter Image Path: ");
             fflush(stdout);

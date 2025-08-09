@@ -6,6 +6,7 @@
 #include "data.h"
 #include "utils.h"
 #include "blas.h"
+#include "constants.h"
 
 #include "crop_layer.h"
 #include "connected_layer.h"
@@ -355,67 +356,81 @@ void set_batch_network(network *net, int b)
     }
 }
 
-int resize_network(network *net, int w, int h)
+/**
+ * Resize a specific layer based on its type
+ * @param l Pointer to the layer
+ * @param w New width
+ * @param h New height
+ * @param net Network context (for route layers)
+ * @param inputs Number of inputs (for cost layers)
+ */
+static void resize_layer_by_type(layer *l, int w, int h, network *net, int inputs)
 {
-#ifdef GPU
-    cuda_set_device(net->gpu_index);
-    cuda_free(net->workspace);
-#endif
-    int i;
-    //if(w == net->w && h == net->h) return 0;
-    net->w = w;
-    net->h = h;
-    int inputs = 0;
-    size_t workspace_size = 0;
-    //fprintf(stderr, "Resizing to %d x %d...\n", w, h);
-    //fflush(stderr);
-    for (i = 0; i < net->n; ++i){
-        layer l = net->layers[i];
-        if(l.type == CONVOLUTIONAL){
-            resize_convolutional_layer(&l, w, h);
-        }else if(l.type == CROP){
-            resize_crop_layer(&l, w, h);
-        }else if(l.type == MAXPOOL){
-            resize_maxpool_layer(&l, w, h);
-        }else if(l.type == REGION){
-            resize_region_layer(&l, w, h);
-        }else if(l.type == YOLO){
-            resize_yolo_layer(&l, w, h);
-        }else if(l.type == ROUTE){
-            resize_route_layer(&l, net);
-        }else if(l.type == SHORTCUT){
-            resize_shortcut_layer(&l, w, h);
-        }else if(l.type == UPSAMPLE){
-            resize_upsample_layer(&l, w, h);
-        }else if(l.type == REORG){
-            resize_reorg_layer(&l, w, h);
-        }else if(l.type == AVGPOOL){
-            resize_avgpool_layer(&l, w, h);
-        }else if(l.type == NORMALIZATION){
-            resize_normalization_layer(&l, w, h);
-        }else if(l.type == COST){
-            resize_cost_layer(&l, inputs);
-        }else{
+    switch(l->type) {
+        case CONVOLUTIONAL:
+            resize_convolutional_layer(l, w, h);
+            break;
+        case CROP:
+            resize_crop_layer(l, w, h);
+            break;
+        case MAXPOOL:
+            resize_maxpool_layer(l, w, h);
+            break;
+        case REGION:
+            resize_region_layer(l, w, h);
+            break;
+        case YOLO:
+            resize_yolo_layer(l, w, h);
+            break;
+        case ROUTE:
+            resize_route_layer(l, net);
+            break;
+        case SHORTCUT:
+            resize_shortcut_layer(l, w, h);
+            break;
+        case UPSAMPLE:
+            resize_upsample_layer(l, w, h);
+            break;
+        case REORG:
+            resize_reorg_layer(l, w, h);
+            break;
+        case AVGPOOL:
+            resize_avgpool_layer(l, w, h);
+            break;
+        case NORMALIZATION:
+            resize_normalization_layer(l, w, h);
+            break;
+        case COST:
+            resize_cost_layer(l, inputs);
+            break;
+        default:
             error("Cannot resize this type of layer");
-        }
-        if(l.workspace_size > workspace_size) workspace_size = l.workspace_size;
-        if(l.workspace_size > 2000000000) assert(0);
-        inputs = l.outputs;
-        net->layers[i] = l;
-        w = l.out_w;
-        h = l.out_h;
-        if(l.type == AVGPOOL) break;
     }
+}
+
+/**
+ * Update network buffers after resizing
+ * @param net Network to update
+ * @param workspace_size Required workspace size
+ */
+static void update_network_buffers(network *net, size_t workspace_size)
+{
     layer out = get_network_output_layer(net);
     net->inputs = net->layers[0].inputs;
     net->outputs = out.outputs;
     net->truths = out.outputs;
     if(net->layers[net->n-1].truths) net->truths = net->layers[net->n-1].truths;
     net->output = out.output;
+    
     free(net->input);
     free(net->truth);
     net->input = calloc(net->inputs*net->batch, sizeof(float));
     net->truth = calloc(net->truths*net->batch, sizeof(float));
+    
+    if(!net->input || !net->truth) {
+        error("Failed to allocate memory for network buffers");
+    }
+    
 #ifdef GPU
     if(gpu_index >= 0){
         cuda_free(net->input_gpu);
@@ -433,7 +448,47 @@ int resize_network(network *net, int w, int h)
     free(net->workspace);
     net->workspace = calloc(1, workspace_size);
 #endif
-    //fprintf(stderr, " Done!\n");
+}
+
+int resize_network(network *net, int w, int h)
+{
+#ifdef GPU
+    cuda_set_device(net->gpu_index);
+    cuda_free(net->workspace);
+#endif
+    
+    net->w = w;
+    net->h = h;
+    int inputs = 0;
+    size_t workspace_size = 0;
+    
+    // Resize each layer
+    for (int i = 0; i < net->n; ++i){
+        layer l = net->layers[i];
+        
+        resize_layer_by_type(&l, w, h, net, inputs);
+        
+        // Update workspace size
+        if(l.workspace_size > workspace_size) {
+            workspace_size = l.workspace_size;
+        }
+        if(l.workspace_size > 2000000000) {
+            error("Workspace size exceeds 2GB limit");
+        }
+        
+        // Update layer dimensions for next iteration
+        inputs = l.outputs;
+        net->layers[i] = l;
+        w = l.out_w;
+        h = l.out_h;
+        
+        // Stop at average pooling layer
+        if(l.type == AVGPOOL) break;
+    }
+    
+    // Update network buffers with new dimensions
+    update_network_buffers(net, workspace_size);
+    
     return 0;
 }
 
@@ -530,10 +585,19 @@ detection *make_network_boxes(network *net, float thresh, int *num)
     int nboxes = num_detections(net, thresh);
     if(num) *num = nboxes;
     detection *dets = calloc(nboxes, sizeof(detection));
+    if(!dets) {
+        error("Failed to allocate memory for detections");
+    }
     for(i = 0; i < nboxes; ++i){
         dets[i].prob = calloc(l.classes, sizeof(float));
+        if(!dets[i].prob) {
+            error("Failed to allocate memory for detection probabilities");
+        }
         if(l.coords > 4){
             dets[i].mask = calloc(l.coords-4, sizeof(float));
+            if(!dets[i].mask) {
+                error("Failed to allocate memory for detection mask");
+            }
         }
     }
     return dets;
