@@ -612,17 +612,18 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
     char *name_list = option_find_str(options, "names", "data/names.list");
     char **names = get_labels(name_list);
 
-    image **alphabet = load_alphabet();
+    // image **alphabet = load_alphabet(); // Unused - kept for future use
     network *net = load_network(cfgfile, weightfile, 0);
     set_batch_network(net, 1);
     srand(2222222);
-    double time;
+    // double time; // Unused - timing code is commented out
     char buff[256];
     char *input = buff;
     float nms=.45;
     while(1){
       
-        strncpy(input, filename, 256);
+        strncpy(input, filename, 255);
+        input[255] = '\0';
 
         image im = load_image_color(input,0,0);
         image sized = letterbox_image(im, net->w, net->h);
@@ -630,7 +631,7 @@ void test_detector(char *datacfg, char *cfgfile, char *weightfile, char *filenam
 
 
         float *X = sized.data;
-        time=what_time_is_it_now();
+        // time=what_time_is_it_now(); // Timing code disabled
         network_predict(net, X);
         // printf("%s: Predicted in asres %f seconds.\n", input, what_time_is_it_now()-time);
         int nboxes = 0;

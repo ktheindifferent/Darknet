@@ -1312,7 +1312,8 @@ void test_lsd(char *cfg, char *weights, char *filename, int gray)
 
     while(1){
         if(filename){
-            strncpy(input, filename, 256);
+            strncpy(input, filename, 255);
+            input[255] = '\0';
         }else{
             printf("Enter Image Path: ");
             fflush(stdout);

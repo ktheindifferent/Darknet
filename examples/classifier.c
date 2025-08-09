@@ -499,7 +499,8 @@ void try_classifier(char *datacfg, char *cfgfile, char *weightfile, char *filena
     char *input = buff;
     while(1){
         if(filename){
-            strncpy(input, filename, 256);
+            strncpy(input, filename, 255);
+            input[255] = '\0';
         }else{
             printf("Enter Image Path: ");
             fflush(stdout);
@@ -577,7 +578,8 @@ void predict_classifier(char *datacfg, char *cfgfile, char *weightfile, char *fi
     char *input = buff;
     while(1){
         if(filename){
-            strncpy(input, filename, 256);
+            strncpy(input, filename, 255);
+            input[255] = '\0';
         }else{
             printf("Enter Image Path: ");
             fflush(stdout);

@@ -1111,47 +1111,94 @@ data load_data_detection(int n, char **paths, int m, int w, int h, int boxes, in
     return d;
 }
 
+/**
+ * Helper function to normalize augmentation parameters
+ */
+static void normalize_load_args(load_args *a)
+{
+    if(a->exposure == 0) a->exposure = 1;
+    if(a->saturation == 0) a->saturation = 1;
+    if(a->aspect == 0) a->aspect = 1;
+}
+
+/**
+ * Load data based on the specified type
+ * Each data type has its own specialized loading function
+ */
+static void load_data_by_type(load_args *a)
+{
+    switch(a->type) {
+        case OLD_CLASSIFICATION_DATA:
+            *a->d = load_data_old(a->paths, a->n, a->m, a->labels, a->classes, a->w, a->h);
+            break;
+        case REGRESSION_DATA:
+            *a->d = load_data_regression(a->paths, a->n, a->m, a->classes, a->min, a->max, 
+                                        a->size, a->angle, a->aspect, a->hue, a->saturation, a->exposure);
+            break;
+        case CLASSIFICATION_DATA:
+            *a->d = load_data_augment(a->paths, a->n, a->m, a->labels, a->classes, a->hierarchy, 
+                                      a->min, a->max, a->size, a->angle, a->aspect, a->hue, 
+                                      a->saturation, a->exposure, a->center);
+            break;
+        case SUPER_DATA:
+            *a->d = load_data_super(a->paths, a->n, a->m, a->w, a->h, a->scale);
+            break;
+        case WRITING_DATA:
+            *a->d = load_data_writing(a->paths, a->n, a->m, a->w, a->h, a->out_w, a->out_h);
+            break;
+        case ISEG_DATA:
+            *a->d = load_data_iseg(a->n, a->paths, a->m, a->w, a->h, a->classes, a->num_boxes, 
+                                  a->scale, a->min, a->max, a->angle, a->aspect, a->hue, 
+                                  a->saturation, a->exposure);
+            break;
+        case INSTANCE_DATA:
+            *a->d = load_data_mask(a->n, a->paths, a->m, a->w, a->h, a->classes, a->num_boxes, 
+                                  a->coords, a->min, a->max, a->angle, a->aspect, a->hue, 
+                                  a->saturation, a->exposure);
+            break;
+        case SEGMENTATION_DATA:
+            *a->d = load_data_seg(a->n, a->paths, a->m, a->w, a->h, a->classes, a->min, a->max, 
+                                 a->angle, a->aspect, a->hue, a->saturation, a->exposure, a->scale);
+            break;
+        case REGION_DATA:
+            *a->d = load_data_region(a->n, a->paths, a->m, a->w, a->h, a->num_boxes, a->classes, 
+                                    a->jitter, a->hue, a->saturation, a->exposure);
+            break;
+        case DETECTION_DATA:
+            *a->d = load_data_detection(a->n, a->paths, a->m, a->w, a->h, a->num_boxes, a->classes, 
+                                       a->jitter, a->hue, a->saturation, a->exposure);
+            break;
+        case SWAG_DATA:
+            *a->d = load_data_swag(a->paths, a->n, a->classes, a->jitter);
+            break;
+        case COMPARE_DATA:
+            *a->d = load_data_compare(a->n, a->paths, a->m, a->classes, a->w, a->h);
+            break;
+        case IMAGE_DATA:
+            *(a->im) = load_image_color(a->path, 0, 0);
+            *(a->resized) = resize_image(*(a->im), a->w, a->h);
+            break;
+        case LETTERBOX_DATA:
+            *(a->im) = load_image_color(a->path, 0, 0);
+            *(a->resized) = letterbox_image(*(a->im), a->w, a->h);
+            break;
+        case TAG_DATA:
+            *a->d = load_data_tag(a->paths, a->n, a->m, a->classes, a->min, a->max, a->size, 
+                                 a->angle, a->aspect, a->hue, a->saturation, a->exposure);
+            break;
+        default:
+            fprintf(stderr, "Unknown data type: %d\n", a->type);
+            break;
+    }
+}
+
 void *load_thread(void *ptr)
 {
-    //printf("Loading data: %d\n", rand());
     load_args a = *(struct load_args*)ptr;
-    if(a.exposure == 0) a.exposure = 1;
-    if(a.saturation == 0) a.saturation = 1;
-    if(a.aspect == 0) a.aspect = 1;
-
-    if (a.type == OLD_CLASSIFICATION_DATA){
-        *a.d = load_data_old(a.paths, a.n, a.m, a.labels, a.classes, a.w, a.h);
-    } else if (a.type == REGRESSION_DATA){
-        *a.d = load_data_regression(a.paths, a.n, a.m, a.classes, a.min, a.max, a.size, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
-    } else if (a.type == CLASSIFICATION_DATA){
-        *a.d = load_data_augment(a.paths, a.n, a.m, a.labels, a.classes, a.hierarchy, a.min, a.max, a.size, a.angle, a.aspect, a.hue, a.saturation, a.exposure, a.center);
-    } else if (a.type == SUPER_DATA){
-        *a.d = load_data_super(a.paths, a.n, a.m, a.w, a.h, a.scale);
-    } else if (a.type == WRITING_DATA){
-        *a.d = load_data_writing(a.paths, a.n, a.m, a.w, a.h, a.out_w, a.out_h);
-    } else if (a.type == ISEG_DATA){
-        *a.d = load_data_iseg(a.n, a.paths, a.m, a.w, a.h, a.classes, a.num_boxes, a.scale, a.min, a.max, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
-    } else if (a.type == INSTANCE_DATA){
-        *a.d = load_data_mask(a.n, a.paths, a.m, a.w, a.h, a.classes, a.num_boxes, a.coords, a.min, a.max, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
-    } else if (a.type == SEGMENTATION_DATA){
-        *a.d = load_data_seg(a.n, a.paths, a.m, a.w, a.h, a.classes, a.min, a.max, a.angle, a.aspect, a.hue, a.saturation, a.exposure, a.scale);
-    } else if (a.type == REGION_DATA){
-        *a.d = load_data_region(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
-    } else if (a.type == DETECTION_DATA){
-        *a.d = load_data_detection(a.n, a.paths, a.m, a.w, a.h, a.num_boxes, a.classes, a.jitter, a.hue, a.saturation, a.exposure);
-    } else if (a.type == SWAG_DATA){
-        *a.d = load_data_swag(a.paths, a.n, a.classes, a.jitter);
-    } else if (a.type == COMPARE_DATA){
-        *a.d = load_data_compare(a.n, a.paths, a.m, a.classes, a.w, a.h);
-    } else if (a.type == IMAGE_DATA){
-        *(a.im) = load_image_color(a.path, 0, 0);
-        *(a.resized) = resize_image(*(a.im), a.w, a.h);
-    } else if (a.type == LETTERBOX_DATA){
-        *(a.im) = load_image_color(a.path, 0, 0);
-        *(a.resized) = letterbox_image(*(a.im), a.w, a.h);
-    } else if (a.type == TAG_DATA){
-        *a.d = load_data_tag(a.paths, a.n, a.m, a.classes, a.min, a.max, a.size, a.angle, a.aspect, a.hue, a.saturation, a.exposure);
-    }
+    
+    normalize_load_args(&a);
+    load_data_by_type(&a);
+    
     free(ptr);
     return 0;
 }
