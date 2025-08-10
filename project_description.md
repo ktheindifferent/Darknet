@@ -64,3 +64,37 @@ The codebase is organized into:
 ✅ **All Security Issues Fixed** - No known vulnerabilities remain
 ✅ **Improved Maintainability** - Reduced complexity scores across critical functions
 ✅ **Better Documentation** - Added function headers and inline documentation
+✅ **Test Suite Created** - Comprehensive unit tests for core functionality
+
+## Testing Infrastructure (2025-08-10)
+
+### Test Suite Development
+Created a comprehensive testing framework for the Darknet codebase:
+
+1. **Test Files Created**:
+   - `tests/test_utils.c` - Tests for utility functions
+   - `tests/test_data.c` - Tests for data loading and manipulation
+   - `tests/test_network.c` - Tests for neural network operations
+   - `tests/test_box.c` - Tests for bounding box operations
+   - `tests/test_image.c` - Tests for image processing functions
+   - `tests/test_blas.c` - Tests for BLAS operations
+   - `tests/test_simplified.c` - Simplified public API tests
+
+2. **Test Infrastructure**:
+   - `tests/Makefile` - Build system for comprehensive tests
+   - `tests/Makefile.simple` - Simplified build for public API tests
+   - `tests/run_tests.sh` - Automated test runner script
+
+3. **Test Coverage**:
+   - Utility functions (command line parsing, string operations)
+   - Matrix and data structure operations
+   - Image processing (resize, crop, pixel operations)
+   - Bounding box calculations (IoU, NMS)
+   - BLAS operations (vector operations, normalization)
+   - Network creation and management
+
+### Testing Challenges Addressed
+- Identified internal vs public API functions
+- Created tests focusing on public API stability
+- Handled missing function declarations in public headers
+- Resolved linking issues with static functions
