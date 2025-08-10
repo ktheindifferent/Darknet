@@ -1,0 +1,18 @@
+CC=gcc
+CFLAGS=-Wall -Wno-unused-result -Wno-unknown-pragmas -Wfatal-errors -fPIC -Ofast -I../include
+LDFLAGS=-L.. -ldarknet -lm -pthread
+
+all: test_simplified
+
+test_simplified: test_simplified.c
+	$(CC) $(CFLAGS) $< -o $@ $(LDFLAGS)
+
+test: test_simplified
+	@echo "\n===== Running Simplified Tests ====="
+	LD_LIBRARY_PATH=.. ./test_simplified
+	@echo "===== Tests Complete ====="
+
+clean:
+	rm -f test_simplified
+
+.PHONY: all test clean
