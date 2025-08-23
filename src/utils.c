@@ -303,6 +303,33 @@ void file_error(char *s)
     exit(0);
 }
 
+void *safe_malloc(size_t size)
+{
+    void *ptr = malloc(size);
+    if (!ptr && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
+void *safe_calloc(size_t nmemb, size_t size)
+{
+    void *ptr = calloc(nmemb, size);
+    if (!ptr && nmemb != 0 && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
+void *safe_realloc(void *old_ptr, size_t size)
+{
+    void *ptr = realloc(old_ptr, size);
+    if (!ptr && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
 list *split_str(char *s, char delim)
 {
     size_t i;
@@ -355,7 +382,7 @@ char *fgetl(FILE *fp)
 {
     if(feof(fp)) return 0;
     size_t size = 512;
-    char *line = malloc(size*sizeof(char));
+    char *line = safe_malloc(size*sizeof(char));
     if(!fgets(line, size, fp)){
         free(line);
         return 0;
@@ -366,11 +393,7 @@ char *fgetl(FILE *fp)
     while((line[curr-1] != '\n') && !feof(fp)){
         if(curr == size-1){
             size *= 2;
-            line = realloc(line, size*sizeof(char));
-            if(!line) {
-                printf("%ld\n", size);
-                malloc_error();
-            }
+            line = safe_realloc(line, size*sizeof(char));
         }
         size_t readsize = size-curr;
         if(readsize > INT_MAX) readsize = INT_MAX-1;
@@ -441,7 +464,7 @@ void write_all(int fd, char *buffer, size_t bytes)
 
 char *copy_string(char *s)
 {
-    char *copy = malloc(strlen(s)+1);
+    char *copy = safe_malloc(strlen(s)+1);
     strncpy(copy, s, strlen(s)+1);
     return copy;
 }
