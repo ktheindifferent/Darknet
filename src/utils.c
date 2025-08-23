@@ -441,8 +441,10 @@ void write_all(int fd, char *buffer, size_t bytes)
 
 char *copy_string(char *s)
 {
-    char *copy = malloc(strlen(s)+1);
-    strncpy(copy, s, strlen(s)+1);
+    size_t len = strlen(s) + 1;
+    char *copy = malloc(len);
+    if (!copy) return NULL;
+    memcpy(copy, s, len);
     return copy;
 }
 

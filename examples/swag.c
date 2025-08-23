@@ -60,13 +60,13 @@ void train_swag(char *cfgfile, char *weightfile)
         printf("%d: %f, %f avg, %f rate, %lf seconds, %d images\n", i, loss, avg_loss, get_current_rate(net), sec(clock()-time), i*imgs);
         if(i%1000==0 || i == 600){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
         }
         free_data(train);
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(net, buff);
 }
 

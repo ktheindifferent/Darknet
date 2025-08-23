@@ -597,7 +597,7 @@ image *get_weights(convolutional_layer l)
         normalize_image(weights[i]);
         /*
            char buff[256];
-           sprintf(buff, "filter%d", i);
+           snprintf(buff, sizeof(buff), "filter%d", i);
            save_image(weights[i], buff);
          */
     }
@@ -613,7 +613,7 @@ image *visualize_convolutional_layer(convolutional_layer l, char *window, image 
     image delta = get_convolutional_image(l);
     image dc = collapse_image_layers(delta, 1);
     char buff[256];
-    sprintf(buff, "%s: Output", window);
+    snprintf(buff, sizeof(buff), "%s: Output", window);
     //show_image(dc, buff);
     //save_image(dc, buff);
     free_image(dc);

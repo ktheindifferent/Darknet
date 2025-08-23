@@ -100,8 +100,8 @@ image load_image_cv(char *filename, int channels)
     m = imread(filename, flag);
     if(!m.data){
         fprintf(stderr, "Cannot load image \"%s\"\n", filename);
-        char buff[256];
-        sprintf(buff, "echo %s >> bad.list", filename);
+        char buff[1024];
+        snprintf(buff, sizeof(buff), "echo '%s' >> bad.list", filename);
         system(buff);
         return make_image(10,10,3);
         //exit(0);
