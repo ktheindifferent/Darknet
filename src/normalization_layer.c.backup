@@ -96,54 +96,14 @@ void forward_normalization_layer(const layer layer, network net)
 
 void backward_normalization_layer(const layer layer, network net)
 {
-    // Correct implementation of Local Response Normalization backward pass
-    // Based on the forward pass: output[i] = input[i] / (norms[i])^beta
-    // where norms[i] = kappa + alpha * sum_j(input[j]^2) for j in window
-    
-    int b, k, i;
+    // TODO This is approximate ;-)
+    // Also this should add in to delta instead of overwritting.
+
     int w = layer.w;
     int h = layer.h;
     int c = layer.c;
-    int spatial = w * h;
-    
-    for(b = 0; b < layer.batch; ++b){
-        float *input = net.input + spatial*c*b;
-        float *output = layer.output + spatial*c*b;
-        float *delta_in = net.delta + spatial*c*b;
-        float *delta_out = layer.delta + spatial*c*b;
-        float *norms = layer.norms + spatial*c*b;
-        
-        // For each channel
-        for(k = 0; k < c; ++k){
-            // Compute window range for channel k
-            int min_c = k - layer.size/2;
-            int max_c = k + layer.size/2;
-            if(min_c < 0) min_c = 0;
-            if(max_c >= c) max_c = c - 1;
-            
-            for(int s = 0; s < spatial; ++s){
-                int idx_k = k * spatial + s;
-                
-                // Gradient has two components:
-                // 1. Direct path where input[k] affects output[k]
-                // 2. Indirect paths where input[k] affects output[i] for i in neighborhood
-                
-                // Direct component
-                float grad = delta_out[idx_k] * pow(norms[idx_k], -layer.beta);
-                
-                // Indirect components - input[k] affects all outputs in its window
-                float factor = -2.0f * layer.alpha * layer.beta * input[idx_k];
-                for(i = min_c; i <= max_c; ++i){
-                    int idx_i = i * spatial + s;
-                    // Gradient from output[i] through normalization
-                    grad += delta_out[idx_i] * output[idx_i] * factor * pow(norms[idx_i], -1.0f);
-                }
-                
-                // Add to existing gradient
-                delta_in[idx_k] += grad;
-            }
-        }
-    }
+    pow_cpu(w*h*c*layer.batch, -layer.beta, layer.norms, 1, net.delta, 1);
+    mul_cpu(w*h*c*layer.batch, layer.delta, 1, net.delta, 1);
 }
 
 #ifdef GPU
@@ -180,71 +140,12 @@ void forward_normalization_layer_gpu(const layer layer, network net)
 
 void backward_normalization_layer_gpu(const layer layer, network net)
 {
-    // GPU implementation of Local Response Normalization backward pass
-    // Uses CPU computation for complex indexing, then pushes back to GPU
-    
-    int b, k, i;
+    // TODO This is approximate ;-)
+
     int w = layer.w;
     int h = layer.h;
     int c = layer.c;
-    int spatial = w * h;
-    int total_size = spatial * c * layer.batch;
-    
-    // Copy data from GPU to CPU for computation
-    float *input_cpu = calloc(total_size, sizeof(float));
-    float *output_cpu = calloc(total_size, sizeof(float));
-    float *delta_in_cpu = calloc(total_size, sizeof(float));
-    float *delta_out_cpu = calloc(total_size, sizeof(float));
-    float *norms_cpu = calloc(total_size, sizeof(float));
-    
-    cuda_pull_array(net.input_gpu, input_cpu, total_size);
-    cuda_pull_array(layer.output_gpu, output_cpu, total_size);
-    cuda_pull_array(net.delta_gpu, delta_in_cpu, total_size);
-    cuda_pull_array(layer.delta_gpu, delta_out_cpu, total_size);
-    cuda_pull_array(layer.norms_gpu, norms_cpu, total_size);
-    
-    for(b = 0; b < layer.batch; ++b){
-        float *input = input_cpu + spatial*c*b;
-        float *output = output_cpu + spatial*c*b;
-        float *delta_in = delta_in_cpu + spatial*c*b;
-        float *delta_out = delta_out_cpu + spatial*c*b;
-        float *norms = norms_cpu + spatial*c*b;
-        
-        // For each channel
-        for(k = 0; k < c; ++k){
-            // Compute window range for channel k
-            int min_c = k - layer.size/2;
-            int max_c = k + layer.size/2;
-            if(min_c < 0) min_c = 0;
-            if(max_c >= c) max_c = c - 1;
-            
-            for(int s = 0; s < spatial; ++s){
-                int idx_k = k * spatial + s;
-                
-                // Direct component
-                float grad = delta_out[idx_k] * pow(norms[idx_k], -layer.beta);
-                
-                // Indirect components
-                float factor = -2.0f * layer.alpha * layer.beta * input[idx_k];
-                for(i = min_c; i <= max_c; ++i){
-                    int idx_i = i * spatial + s;
-                    grad += delta_out[idx_i] * output[idx_i] * factor * pow(norms[idx_i], -1.0f);
-                }
-                
-                // Add to existing gradient
-                delta_in[idx_k] += grad;
-            }
-        }
-    }
-    
-    // Push the result back to GPU
-    cuda_push_array(net.delta_gpu, delta_in_cpu, total_size);
-    
-    // Free temporary CPU memory
-    free(input_cpu);
-    free(output_cpu);
-    free(delta_in_cpu);
-    free(delta_out_cpu);
-    free(norms_cpu);
+    pow_gpu(w*h*c*layer.batch, -layer.beta, layer.norms_gpu, 1, net.delta_gpu, 1);
+    mul_gpu(w*h*c*layer.batch, layer.delta_gpu, 1, net.delta_gpu, 1);
 }
 #endif
