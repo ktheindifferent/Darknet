@@ -7,6 +7,7 @@
 #include "utils.h"
 #include "blas.h"
 #include "constants.h"
+#include "thread_sync.h"
 
 #include "crop_layer.h"
 #include "connected_layer.h"
@@ -32,6 +33,15 @@
 #include "shortcut_layer.h"
 #include "parser.h"
 #include "data.h"
+
+// Global synchronization context
+static sync_mutexes g_sync = {0};
+static network_sync_context *g_net_sync_ctx = NULL;
+static pthread_once_t sync_init_once = PTHREAD_ONCE_INIT;
+
+static void init_global_sync(void) {
+    init_sync_mutexes(&g_sync);
+}
 
 load_args get_base_args(network *net)
 {
@@ -931,14 +941,35 @@ typedef struct {
     network *net;
     data d;
     float *err;
+    pthread_mutex_t *completion_mutex;  // Mutex for signaling completion
+    int thread_id;                      // Thread identifier
 } train_args;
 
 void *train_thread(void *ptr)
 {
     train_args args = *(train_args*)ptr;
-    free(ptr);
+    
+    // Ensure global sync is initialized
+    pthread_once(&sync_init_once, init_global_sync);
+    
+    // Protect GPU device setting
+    pthread_mutex_lock(&g_sync.gpu_mutex);
     cuda_set_device(args.net->gpu_index);
-    *args.err = train_network(args.net, args.d);
+    pthread_mutex_unlock(&g_sync.gpu_mutex);
+    
+    // Perform training
+    float local_err = train_network(args.net, args.d);
+    
+    // Safely update error value
+    if (args.completion_mutex) {
+        pthread_mutex_lock(args.completion_mutex);
+    }
+    *args.err = local_err;
+    if (args.completion_mutex) {
+        pthread_mutex_unlock(args.completion_mutex);
+    }
+    
+    free(ptr);
     return 0;
 }
 
@@ -946,10 +977,18 @@ pthread_t train_network_in_thread(network *net, data d, float *err)
 {
     pthread_t thread;
     train_args *ptr = (train_args *)calloc(1, sizeof(train_args));
+    if (!ptr) error("Memory allocation failed for train_args");
+    
     ptr->net = net;
     ptr->d = d;
     ptr->err = err;
-    if(pthread_create(&thread, 0, train_thread, ptr)) error("Thread creation failed");
+    ptr->completion_mutex = NULL;  // Will be set by caller if needed
+    ptr->thread_id = 0;             // Will be set by caller if needed
+    
+    if(pthread_create(&thread, 0, train_thread, ptr)) {
+        free(ptr);
+        error("Thread creation failed");
+    }
     return thread;
 }
 
@@ -1108,31 +1147,56 @@ void sync_layer(network **nets, int n, int j)
     int i;
     network *net = nets[0];
     layer base = net->layers[j];
+    
+    // Ensure global sync is initialized
+    pthread_once(&sync_init_once, init_global_sync);
+    
+    // Lock weight mutex for entire synchronization operation
+    pthread_mutex_lock(&g_sync.weight_mutex);
+    
     scale_weights(base, 0);
     for (i = 0; i < n; ++i) {
+        // Protect GPU device switching
+        pthread_mutex_lock(&g_sync.gpu_mutex);
         cuda_set_device(nets[i]->gpu_index);
+        pthread_mutex_unlock(&g_sync.gpu_mutex);
+        
         layer l = nets[i]->layers[j];
         pull_weights(l);
         merge_weights(l, base);
     }
     scale_weights(base, 1./n);
     for (i = 0; i < n; ++i) {
+        pthread_mutex_lock(&g_sync.gpu_mutex);
         cuda_set_device(nets[i]->gpu_index);
+        pthread_mutex_unlock(&g_sync.gpu_mutex);
+        
         layer l = nets[i]->layers[j];
         distribute_weights(l, base);
     }
+    
+    pthread_mutex_unlock(&g_sync.weight_mutex);
 }
 
 typedef struct{
     network **nets;
     int n;
     int j;
+    pthread_barrier_t *barrier;  // For synchronization between layers
 } sync_args;
 
 void *sync_layer_thread(void *ptr)
 {
     sync_args args = *(sync_args*)ptr;
+    
+    // Perform layer synchronization
     sync_layer(args.nets, args.n, args.j);
+    
+    // Signal completion if barrier is provided
+    if (args.barrier) {
+        pthread_barrier_wait(args.barrier);
+    }
+    
     free(ptr);
     return 0;
 }
@@ -1141,10 +1205,17 @@ pthread_t sync_layer_in_thread(network **nets, int n, int j)
 {
     pthread_t thread;
     sync_args *ptr = (sync_args *)calloc(1, sizeof(sync_args));
+    if (!ptr) error("Memory allocation failed for sync_args");
+    
     ptr->nets = nets;
     ptr->n = n;
     ptr->j = j;
-    if(pthread_create(&thread, 0, sync_layer_thread, ptr)) error("Thread creation failed");
+    ptr->barrier = NULL;  // Will be set by caller if needed
+    
+    if(pthread_create(&thread, 0, sync_layer_thread, ptr)) {
+        free(ptr);
+        error("Thread creation failed");
+    }
     return thread;
 }
 
@@ -1153,11 +1224,18 @@ void sync_nets(network **nets, int n, int interval)
     int j;
     int layers = nets[0]->n;
     pthread_t *threads = (pthread_t *) calloc(layers, sizeof(pthread_t));
-
+    if (!threads) error("Memory allocation failed for threads");
+    
+    // Ensure global sync is initialized
+    pthread_once(&sync_init_once, init_global_sync);
+    
+    // Atomically update seen counter
+    pthread_mutex_lock(&g_sync.stats_mutex);
     *(nets[0]->seen) += interval * (n-1) * nets[0]->batch * nets[0]->subdivisions;
     for (j = 0; j < n; ++j){
         *(nets[j]->seen) = *(nets[0]->seen);
     }
+    pthread_mutex_unlock(&g_sync.stats_mutex);
     for (j = 0; j < layers; ++j) {
         threads[j] = sync_layer_in_thread(nets, n, j);
     }
@@ -1175,12 +1253,30 @@ float train_networks(network **nets, int n, data d, int interval)
     assert(batch * subdivisions * n == d.X.rows);
     pthread_t *threads = (pthread_t *) calloc(n, sizeof(pthread_t));
     float *errors = (float *) calloc(n, sizeof(float));
+    
+    if (!threads || !errors) {
+        free(threads);
+        free(errors);
+        error("Memory allocation failed in train_networks");
+    }
+
+    // Ensure global sync is initialized
+    pthread_once(&sync_init_once, init_global_sync);
+    
+    // Create network sync context if needed
+    if (!g_net_sync_ctx && nets[0]->n > 0) {
+        g_net_sync_ctx = create_network_sync_context(nets[0]->n);
+    }
 
     float sum = 0;
+    
+    // Launch training threads
     for(i = 0; i < n; ++i){
         data p = get_data_part(d, i, n);
         threads[i] = train_network_in_thread(nets[i], p, errors + i);
     }
+    
+    // Wait for all threads to complete
     for(i = 0; i < n; ++i){
         pthread_join(threads[i], 0);
         //printf("%f\n", errors[i]);

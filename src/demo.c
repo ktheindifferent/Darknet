@@ -7,6 +7,7 @@
 #include "box.h"
 #include "image.h"
 #include "demo.h"
+#include "thread_sync.h"
 #include <sys/time.h>
 
 #define DEMO 1
@@ -35,6 +36,14 @@ static int demo_done = 0;
 static int demo_total = 0;
 double demo_time;
 
+// Thread synchronization context for demo
+static demo_sync_context *g_demo_sync = NULL;
+static pthread_once_t demo_sync_init_once = PTHREAD_ONCE_INIT;
+
+static void init_demo_sync(void) {
+    g_demo_sync = create_demo_sync_context();
+}
+
 detection *get_network_boxes(network *net, int w, int h, float thresh, float hier, int *map, int relative, int *num);
 
 int size_network(network *net)
@@ -54,6 +63,15 @@ void remember_network(network *net)
 {
     int i;
     int count = 0;
+    
+    // Ensure sync is initialized
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
+    // Lock prediction mutex for safe access
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->prediction_mutex);
+    }
+    
     for(i = 0; i < net->n; ++i){
         layer l = net->layers[i];
         if(l.type == YOLO || l.type == REGION || l.type == DETECTION){
@@ -61,12 +79,25 @@ void remember_network(network *net)
             count += l.outputs;
         }
     }
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->prediction_mutex);
+    }
 }
 
 detection *avg_predictions(network *net, int *nboxes)
 {
     int i, j;
     int count = 0;
+    
+    // Ensure sync is initialized
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
+    // Lock prediction mutex for safe access
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->prediction_mutex);
+    }
+    
     fill_cpu(demo_total, 0, avg, 1);
     for(j = 0; j < demo_frame; ++j){
         axpy_cpu(demo_total, 1./demo_frame, predictions[j], 1, avg, 1);
@@ -78,17 +109,44 @@ detection *avg_predictions(network *net, int *nboxes)
             count += l.outputs;
         }
     }
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->prediction_mutex);
+    }
+    
     detection *dets = get_network_boxes(net, buff[0].w, buff[0].h, demo_thresh, demo_hier, 0, 1, nboxes);
     return dets;
 }
 
 void *detect_in_thread(void *ptr)
 {
-    running = 1;
+    // Ensure sync is initialized
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
+    // Atomically set running state
+    if (g_demo_sync) {
+        atomic_store(&g_demo_sync->demo_running, 1);
+    } else {
+        running = 1;
+    }
+    
     float nms = .4;
 
     layer l = net->layers[net->n-1];
-    float *X = buff_letter[(buff_index+2)%3].data;
+    
+    // Lock buffer for safe access
+    int local_buff_index = buff_index;
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->buffer_mutex);
+        local_buff_index = atomic_load(&g_demo_sync->buffer_index);
+    }
+    
+    float *X = buff_letter[(local_buff_index+2)%3].data;
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+    }
+    
     network_predict(net, X);
 
     /*
@@ -128,30 +186,92 @@ void *detect_in_thread(void *ptr)
     printf("\033[1;1H");
     printf("\nFPS:%.1f\n",fps);
     printf("Objects:\n\n");
-    image display = buff[(buff_index+2) % 3];
+    
+    // Lock buffer for safe access to display image
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->buffer_mutex);
+        local_buff_index = atomic_load(&g_demo_sync->buffer_index);
+    }
+    
+    image display = buff[(local_buff_index+2) % 3];
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+    }
+    
     draw_detections(display, dets, nboxes, demo_thresh, demo_names, demo_alphabet, demo_classes);
     free_detections(dets, nboxes);
 
     demo_index = (demo_index + 1)%demo_frame;
-    running = 0;
+    
+    // Atomically clear running state
+    if (g_demo_sync) {
+        atomic_store(&g_demo_sync->demo_running, 0);
+        // Signal detection completion
+        pthread_cond_signal(&g_demo_sync->detection_done);
+    } else {
+        running = 0;
+    }
+    
     return 0;
 }
 
 void *fetch_in_thread(void *ptr)
 {
-    free_image(buff[buff_index]);
-    buff[buff_index] = get_image_from_stream(cap);
-    if(buff[buff_index].data == 0) {
+    // Ensure sync is initialized
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
+    int local_buff_index = buff_index;
+    
+    // Lock buffer for safe access
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->buffer_mutex);
+        local_buff_index = atomic_load(&g_demo_sync->buffer_index);
+    }
+    
+    free_image(buff[local_buff_index]);
+    buff[local_buff_index] = get_image_from_stream(cap);
+    
+    if(buff[local_buff_index].data == 0) {
+        if (g_demo_sync) {
+            pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+        }
         demo_done = 1;
         return 0;
     }
-    letterbox_image_into(buff[buff_index], net->w, net->h, buff_letter[buff_index]);
+    
+    letterbox_image_into(buff[local_buff_index], net->w, net->h, buff_letter[local_buff_index]);
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+        // Signal buffer is ready
+        pthread_cond_signal(&g_demo_sync->buffer_ready);
+    }
+    
     return 0;
 }
 
 void *display_in_thread(void *ptr)
 {
-    int c = show_image(buff[(buff_index + 1)%3], "Demo", 1);
+    // Ensure sync is initialized
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
+    int local_buff_index = buff_index;
+    
+    // Lock display mutex and buffer mutex
+    if (g_demo_sync) {
+        pthread_mutex_lock(&g_demo_sync->display_mutex);
+        pthread_mutex_lock(&g_demo_sync->buffer_mutex);
+        local_buff_index = atomic_load(&g_demo_sync->buffer_index);
+    }
+    
+    int c = show_image(buff[(local_buff_index + 1)%3], "Demo", 1);
+    
+    if (g_demo_sync) {
+        pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+        pthread_mutex_unlock(&g_demo_sync->display_mutex);
+    }
+    
     if (c != -1) c = c%256;
     if (c == 27) {
         demo_done = 1;
@@ -193,6 +313,10 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     demo_classes = classes;
     demo_thresh = thresh;
     demo_hier = hier;
+    
+    // Initialize synchronization context
+    pthread_once(&demo_sync_init_once, init_demo_sync);
+    
     printf("Demo\n");
     net = load_network(cfgfile, weightfile, 0);
     set_batch_network(net, 1);
@@ -233,21 +357,45 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
     demo_time = what_time_is_it_now();
 
     while(!demo_done){
-        buff_index = (buff_index + 1) %3;
+        // Update buffer index atomically
+        if (g_demo_sync) {
+            int new_index = (atomic_load(&g_demo_sync->buffer_index) + 1) % 3;
+            atomic_store(&g_demo_sync->buffer_index, new_index);
+            buff_index = new_index;
+        } else {
+            buff_index = (buff_index + 1) % 3;
+        }
+        
         if(pthread_create(&fetch_thread, 0, fetch_in_thread, 0)) error("Thread creation failed");
         if(pthread_create(&detect_thread, 0, detect_in_thread, 0)) error("Thread creation failed");
+        
         if(!prefix){
             fps = 1./(what_time_is_it_now() - demo_time);
             demo_time = what_time_is_it_now();
             display_in_thread(0);
         }else{
             char name[256];
+            int local_buff_index = buff_index;
+            if (g_demo_sync) {
+                pthread_mutex_lock(&g_demo_sync->buffer_mutex);
+                local_buff_index = atomic_load(&g_demo_sync->buffer_index);
+            }
             snprintf(name, sizeof(name), "%s_%08d", prefix, count);
-            save_image(buff[(buff_index + 1)%3], name);
+            save_image(buff[(local_buff_index + 1)%3], name);
+            if (g_demo_sync) {
+                pthread_mutex_unlock(&g_demo_sync->buffer_mutex);
+            }
         }
+        
         pthread_join(fetch_thread, 0);
         pthread_join(detect_thread, 0);
         ++count;
+    }
+    
+    // Cleanup synchronization context
+    if (g_demo_sync) {
+        destroy_demo_sync_context(g_demo_sync);
+        g_demo_sync = NULL;
     }
 }
 
