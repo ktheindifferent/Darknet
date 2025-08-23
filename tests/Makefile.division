@@ -1,0 +1,54 @@
+CC=gcc
+CFLAGS=-Wall -Wno-unused-result -Wno-unknown-pragmas -Wfatal-errors -fPIC -O2 -I../include -I../src
+LDFLAGS=-lm
+
+# Source files from main project
+SRC_DIR=../src
+UTILS_SRC=$(SRC_DIR)/utils.c $(SRC_DIR)/list.c 
+BOX_SRC=$(SRC_DIR)/box.c
+YOLO_SRC=$(SRC_DIR)/yolo_layer.c $(SRC_DIR)/activations.c $(SRC_DIR)/blas.c $(SRC_DIR)/im2col.c $(SRC_DIR)/col2im.c $(SRC_DIR)/gemm.c
+
+# Object files
+UTILS_OBJ=$(UTILS_SRC:.c=.o)
+BOX_OBJ=$(BOX_SRC:.c=.o)
+YOLO_OBJ=$(YOLO_SRC:.c=.o)
+
+# Test executables
+TEST_SAFE_MATH=test_safe_math
+TEST_DIVISION=test_division_protection
+
+.PHONY: all clean test
+
+all: $(TEST_SAFE_MATH) $(TEST_DIVISION)
+
+# Build safe math test (standalone)
+$(TEST_SAFE_MATH): test_safe_math.c
+	$(CC) $(CFLAGS) -o $@ $< $(LDFLAGS)
+
+# Build division protection test (needs utils and yolo objects)
+$(TEST_DIVISION): test_division_protection.c $(UTILS_OBJ) $(BOX_OBJ) $(YOLO_OBJ)
+	$(CC) $(CFLAGS) -o $@ $< $(UTILS_OBJ) $(BOX_OBJ) $(YOLO_OBJ) $(LDFLAGS)
+
+# Pattern rule for object files
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
+
+# Run tests
+test: all
+	@echo "Running safe math tests..."
+	./$(TEST_SAFE_MATH)
+	@echo ""
+	@echo "Running division protection tests..."
+	./$(TEST_DIVISION)
+
+clean:
+	rm -f $(TEST_SAFE_MATH) $(TEST_DIVISION)
+	rm -f $(UTILS_OBJ) $(BOX_OBJ) $(YOLO_OBJ)
+	rm -f *.o
+
+# Individual test targets
+test-safe-math: $(TEST_SAFE_MATH)
+	./$(TEST_SAFE_MATH)
+
+test-division: $(TEST_DIVISION)
+	./$(TEST_DIVISION)
