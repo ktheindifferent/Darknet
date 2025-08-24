@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "utils.h"
 
 softmax_layer make_softmax_layer(int batch, int inputs, int groups)
 {
@@ -18,10 +19,10 @@ softmax_layer make_softmax_layer(int batch, int inputs, int groups)
     l.groups = groups;
     l.inputs = inputs;
     l.outputs = inputs;
-    l.loss = calloc(inputs*batch, sizeof(float));
-    l.output = calloc(inputs*batch, sizeof(float));
-    l.delta = calloc(inputs*batch, sizeof(float));
-    l.cost = calloc(1, sizeof(float));
+    l.loss = safe_calloc(inputs*batch, sizeof(float));
+    l.output = safe_calloc(inputs*batch, sizeof(float));
+    l.delta = safe_calloc(inputs*batch, sizeof(float));
+    l.cost = safe_calloc(1, sizeof(float));
 
     l.forward = forward_softmax_layer;
     l.backward = backward_softmax_layer;

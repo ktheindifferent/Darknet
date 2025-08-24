@@ -2,6 +2,7 @@
 #include "blas.h"
 
 #include <stdio.h>
+#include "utils.h"
 
 layer make_normalization_layer(int batch, int w, int h, int c, int size, float alpha, float beta, float kappa)
 {
@@ -16,10 +17,10 @@ layer make_normalization_layer(int batch, int w, int h, int c, int size, float a
     layer.size = size;
     layer.alpha = alpha;
     layer.beta = beta;
-    layer.output = calloc(h * w * c * batch, sizeof(float));
-    layer.delta = calloc(h * w * c * batch, sizeof(float));
-    layer.squared = calloc(h * w * c * batch, sizeof(float));
-    layer.norms = calloc(h * w * c * batch, sizeof(float));
+    layer.output = safe_calloc(h * w * c * batch, sizeof(float));
+    layer.delta = safe_calloc(h * w * c * batch, sizeof(float));
+    layer.squared = safe_calloc(h * w * c * batch, sizeof(float));
+    layer.norms = safe_calloc(h * w * c * batch, sizeof(float));
     layer.inputs = w*h*c;
     layer.outputs = layer.inputs;
 
@@ -47,10 +48,10 @@ void resize_normalization_layer(layer *layer, int w, int h)
     layer->out_w = w;
     layer->inputs = w*h*c;
     layer->outputs = layer->inputs;
-    layer->output = realloc(layer->output, h * w * c * batch * sizeof(float));
-    layer->delta = realloc(layer->delta, h * w * c * batch * sizeof(float));
-    layer->squared = realloc(layer->squared, h * w * c * batch * sizeof(float));
-    layer->norms = realloc(layer->norms, h * w * c * batch * sizeof(float));
+    layer->output = safe_realloc(layer->output, h * w * c * batch * sizeof(float));
+    layer->delta = safe_realloc(layer->delta, h * w * c * batch * sizeof(float));
+    layer->squared = safe_realloc(layer->squared, h * w * c * batch * sizeof(float));
+    layer->norms = safe_realloc(layer->norms, h * w * c * batch * sizeof(float));
 #ifdef GPU
     cuda_free(layer->output_gpu);
     cuda_free(layer->delta_gpu); 

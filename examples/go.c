@@ -1,4 +1,5 @@
 #include "darknet.h"
+#include "utils.h"
 
 #include <assert.h>
 #include <math.h>
@@ -19,7 +20,7 @@ char *fgetgo(FILE *fp)
 {
     if(feof(fp)) return 0;
     size_t size = 96;
-    char *line = malloc(size*sizeof(char));
+    char *line = safe_malloc(size*sizeof(char));
     if(size != fread(line, sizeof(char), size, fp)){
         free(line);
         return 0;

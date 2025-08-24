@@ -978,7 +978,7 @@ list *read_cfg(char *filename)
         strip(line);
         switch(line[0]){
             case '[':
-                current = malloc(sizeof(section));
+                current = safe_malloc(sizeof(section));
                 list_insert(options, current);
                 current->options = make_list();
                 current->type = line;
