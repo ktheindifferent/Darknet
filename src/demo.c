@@ -203,11 +203,11 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
 
     int i;
     demo_total = size_network(net);
-    predictions = calloc(demo_frame, sizeof(float*));
+    predictions = safe_calloc(demo_frame, sizeof(float*));
     for (i = 0; i < demo_frame; ++i){
-        predictions[i] = calloc(demo_total, sizeof(float));
+        predictions[i] = safe_calloc(demo_total, sizeof(float));
     }
-    avg = calloc(demo_total, sizeof(float));
+    avg = safe_calloc(demo_total, sizeof(float));
 
     if(filename){
         printf("video file: %s\n", filename);
@@ -255,7 +255,7 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
    void demo_compare(char *cfg1, char *weight1, char *cfg2, char *weight2, float thresh, int cam_index, const char *filename, char **names, int classes, int delay, char *prefix, int avg_frames, float hier, int w, int h, int frames, int fullscreen)
    {
    demo_frame = avg_frames;
-   predictions = calloc(demo_frame, sizeof(float*));
+   predictions = safe_calloc(demo_frame, sizeof(float*));
    image **alphabet = load_alphabet();
    demo_names = names;
    demo_alphabet = alphabet;
@@ -293,12 +293,12 @@ void demo(char *cfgfile, char *weightfile, float thresh, int cam_index, const ch
    demo_detections = l.n*l.w*l.h;
    int j;
 
-   avg = (float *) calloc(l.outputs, sizeof(float));
-   for(j = 0; j < demo_frame; ++j) predictions[j] = (float *) calloc(l.outputs, sizeof(float));
+   avg = (float *) safe_calloc(l.outputs, sizeof(float));
+   for(j = 0; j < demo_frame; ++j) predictions[j] = (float *) safe_calloc(l.outputs, sizeof(float));
 
-   boxes = (box *)calloc(l.w*l.h*l.n, sizeof(box));
-   probs = (float **)calloc(l.w*l.h*l.n, sizeof(float *));
-   for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float *)calloc(l.classes+1, sizeof(float));
+   boxes = (box *)safe_calloc(l.w*l.h*l.n, sizeof(box));
+   probs = (float **)safe_calloc(l.w*l.h*l.n, sizeof(float *));
+   for(j = 0; j < l.w*l.h*l.n; ++j) probs[j] = (float *)safe_calloc(l.classes+1, sizeof(float));
 
    buff[0] = get_image_from_stream(cap);
    buff[1] = copy_image(buff[0]);
