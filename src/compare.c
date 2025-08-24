@@ -320,7 +320,7 @@ void BattleRoyaleWithCheese(char *filename, char *weightfile)
             printf("Round: %f secs, %d remaining\n", sec(clock()-round_time), N);
         }
         char buff[256];
-        sprintf(buff, "results/battle_%d.log", class);
+        snprintf(buff, sizeof(buff), "results/battle_%d.log", class);
         FILE *outfp = fopen(buff, "w");
         for(i = 0; i < N; ++i){
             fprintf(outfp, "%s %f\n", boxes[i].filename, boxes[i].elos[class]);

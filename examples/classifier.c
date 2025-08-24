@@ -146,17 +146,17 @@ void train_classifier(char *datacfg, char *cfgfile, char *weightfile, int *gpus,
         if(*net->seen/N > epoch){
             epoch = *net->seen/N;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights",backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights",backup_directory,base, epoch);
             save_weights(net, buff);
         }
         if(get_current_batch(net)%1000 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup",backup_directory,base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup",backup_directory,base);
             save_weights(net, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s.weights", backup_directory, base);
     save_weights(net, buff);
     pthread_join(load_thread, 0);
 
@@ -892,7 +892,7 @@ void threat_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_i
         }
         top_predictions(net, top, indexes);
         char buff[256];
-        sprintf(buff, "/home/pjreddie/tmp/threat_%06d", count);
+        snprintf(buff, sizeof(buff), "/home/pjreddie/tmp/threat_%06d", count);
         //save_image(out, buff);
 
         printf("\033[2J");
@@ -1039,7 +1039,7 @@ void demo_classifier(char *datacfg, char *cfgfile, char *weightfile, int cam_ind
             printf("%.1f%%: %s\n", predictions[index]*100, names[index]);
 
             char buff[1024];
-            sprintf(buff, "%3.1f%%: %s\n", predictions[index]*100, names[index]);
+            snprintf(buff, sizeof(buff), "%3.1f%%: %s\n", predictions[index]*100, names[index]);
             image label = get_label(alphabet, buff, lh);
             draw_label(in, toph, lh, label, rgb);
             toph += 2*lh;

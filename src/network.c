@@ -177,12 +177,12 @@ char *get_layer_string(LAYER_TYPE a)
 
 network *make_network(int n)
 {
-    network *net = calloc(1, sizeof(network));
+    network *net = safe_calloc(1, sizeof(network));
     net->n = n;
-    net->layers = calloc(net->n, sizeof(layer));
-    net->seen = calloc(1, sizeof(size_t));
-    net->t    = calloc(1, sizeof(int));
-    net->cost = calloc(1, sizeof(float));
+    net->layers = safe_calloc(net->n, sizeof(layer));
+    net->seen = safe_calloc(1, sizeof(size_t));
+    net->t    = safe_calloc(1, sizeof(int));
+    net->cost = safe_calloc(1, sizeof(float));
     return net;
 }
 
@@ -424,8 +424,8 @@ static void update_network_buffers(network *net, size_t workspace_size)
     
     free(net->input);
     free(net->truth);
-    net->input = calloc(net->inputs*net->batch, sizeof(float));
-    net->truth = calloc(net->truths*net->batch, sizeof(float));
+    net->input = safe_calloc(net->inputs*net->batch, sizeof(float));
+    net->truth = safe_calloc(net->truths*net->batch, sizeof(float));
     
     if(!net->input || !net->truth) {
         error("Failed to allocate memory for network buffers");
@@ -442,11 +442,11 @@ static void update_network_buffers(network *net, size_t workspace_size)
         }
     }else {
         free(net->workspace);
-        net->workspace = calloc(1, workspace_size);
+        net->workspace = safe_calloc(1, workspace_size);
     }
 #else
     free(net->workspace);
-    net->workspace = calloc(1, workspace_size);
+    net->workspace = safe_calloc(1, workspace_size);
 #endif
 }
 
@@ -535,7 +535,7 @@ void visualize_network(network *net)
     int i;
     char buff[256];
     for(i = 0; i < net->n; ++i){
-        sprintf(buff, "Layer %d", i);
+        snprintf(buff, sizeof(buff), "Layer %d", i);
         layer l = net->layers[i];
         if(l.type == CONVOLUTIONAL){
             prev = visualize_convolutional_layer(l, buff, prev);
@@ -584,17 +584,17 @@ detection *make_network_boxes(network *net, float thresh, int *num)
     int i;
     int nboxes = num_detections(net, thresh);
     if(num) *num = nboxes;
-    detection *dets = calloc(nboxes, sizeof(detection));
+    detection *dets = safe_calloc(nboxes, sizeof(detection));
     if(!dets) {
         error("Failed to allocate memory for detections");
     }
     for(i = 0; i < nboxes; ++i){
-        dets[i].prob = calloc(l.classes, sizeof(float));
+        dets[i].prob = safe_calloc(l.classes, sizeof(float));
         if(!dets[i].prob) {
             error("Failed to allocate memory for detection probabilities");
         }
         if(l.coords > 4){
-            dets[i].mask = calloc(l.coords-4, sizeof(float));
+            dets[i].mask = safe_calloc(l.coords-4, sizeof(float));
             if(!dets[i].mask) {
                 error("Failed to allocate memory for detection mask");
             }
@@ -674,7 +674,7 @@ matrix network_predict_data_multi(network *net, data test, int n)
 {
     int k = net->outputs;
     matrix pred = make_matrix(test.X.rows, k);
-    float *X = calloc(net->batch * test.X.rows, sizeof(float));
+    float *X = safe_calloc(net->batch * test.X.rows, sizeof(float));
     
     for(int i = 0; i < test.X.rows; i += net->batch){
         prepare_batch_input(test, X, i, net->batch);
@@ -703,7 +703,7 @@ matrix network_predict_data(network *net, data test)
 {
     int k = net->outputs;
     matrix pred = make_matrix(test.X.rows, k);
-    float *X = calloc(net->batch * test.X.cols, sizeof(float));
+    float *X = safe_calloc(net->batch * test.X.cols, sizeof(float));
     
     for(int i = 0; i < test.X.rows; i += net->batch){
         prepare_batch_input(test, X, i, net->batch);
@@ -945,7 +945,7 @@ void *train_thread(void *ptr)
 pthread_t train_network_in_thread(network *net, data d, float *err)
 {
     pthread_t thread;
-    train_args *ptr = (train_args *)calloc(1, sizeof(train_args));
+    train_args *ptr = (train_args *)safe_calloc(1, sizeof(train_args));
     ptr->net = net;
     ptr->d = d;
     ptr->err = err;
@@ -1140,7 +1140,7 @@ void *sync_layer_thread(void *ptr)
 pthread_t sync_layer_in_thread(network **nets, int n, int j)
 {
     pthread_t thread;
-    sync_args *ptr = (sync_args *)calloc(1, sizeof(sync_args));
+    sync_args *ptr = (sync_args *)safe_calloc(1, sizeof(sync_args));
     ptr->nets = nets;
     ptr->n = n;
     ptr->j = j;
@@ -1152,7 +1152,7 @@ void sync_nets(network **nets, int n, int interval)
 {
     int j;
     int layers = nets[0]->n;
-    pthread_t *threads = (pthread_t *) calloc(layers, sizeof(pthread_t));
+    pthread_t *threads = (pthread_t *) safe_calloc(layers, sizeof(pthread_t));
 
     *(nets[0]->seen) += interval * (n-1) * nets[0]->batch * nets[0]->subdivisions;
     for (j = 0; j < n; ++j){
@@ -1173,8 +1173,8 @@ float train_networks(network **nets, int n, data d, int interval)
     int batch = nets[0]->batch;
     int subdivisions = nets[0]->subdivisions;
     assert(batch * subdivisions * n == d.X.rows);
-    pthread_t *threads = (pthread_t *) calloc(n, sizeof(pthread_t));
-    float *errors = (float *) calloc(n, sizeof(float));
+    pthread_t *threads = (pthread_t *) safe_calloc(n, sizeof(pthread_t));
+    float *errors = (float *) safe_calloc(n, sizeof(float));
 
     float sum = 0;
     for(i = 0; i < n; ++i){

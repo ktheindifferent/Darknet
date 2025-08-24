@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "utils.h"
 
 layer make_logistic_layer(int batch, int inputs)
 {
@@ -17,10 +18,10 @@ layer make_logistic_layer(int batch, int inputs)
     l.batch = batch;
     l.inputs = inputs;
     l.outputs = inputs;
-    l.loss = calloc(inputs*batch, sizeof(float));
-    l.output = calloc(inputs*batch, sizeof(float));
-    l.delta = calloc(inputs*batch, sizeof(float));
-    l.cost = calloc(1, sizeof(float));
+    l.loss = safe_calloc(inputs*batch, sizeof(float));
+    l.output = safe_calloc(inputs*batch, sizeof(float));
+    l.delta = safe_calloc(inputs*batch, sizeof(float));
+    l.cost = safe_calloc(1, sizeof(float));
 
     l.forward = forward_logistic_layer;
     l.backward = backward_logistic_layer;
