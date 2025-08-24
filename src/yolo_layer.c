@@ -4,6 +4,7 @@
 #include "box.h"
 #include "cuda.h"
 #include "utils.h"
+#include "safe_math.h"
 
 #include <stdio.h>
 #include <assert.h>
@@ -83,10 +84,11 @@ void resize_yolo_layer(layer *l, int w, int h)
 box get_yolo_box(float *x, float *biases, int n, int index, int i, int j, int lw, int lh, int w, int h, int stride)
 {
     box b;
-    b.x = (i + x[index + 0*stride]) / lw;
-    b.y = (j + x[index + 1*stride]) / lh;
-    b.w = exp(x[index + 2*stride]) * biases[2*n]   / w;
-    b.h = exp(x[index + 3*stride]) * biases[2*n+1] / h;
+    // Use safe division to prevent division by zero
+    b.x = safe_divide(i + x[index + 0*stride], lw, 0.0);
+    b.y = safe_divide(j + x[index + 1*stride], lh, 0.0);
+    b.w = safe_divide(exp(x[index + 2*stride]) * biases[2*n], w, 0.0);
+    b.h = safe_divide(exp(x[index + 3*stride]) * biases[2*n+1], h, 0.0);
     return b;
 }
 
@@ -97,8 +99,9 @@ float delta_yolo_box(box truth, float *x, float *biases, int n, int index, int i
 
     float tx = (truth.x*lw - i);
     float ty = (truth.y*lh - j);
-    float tw = log(truth.w*w / biases[2*n]);
-    float th = log(truth.h*h / biases[2*n + 1]);
+    // Use safe log to prevent log of zero or negative values
+    float tw = safe_log(safe_divide(truth.w*w, biases[2*n], SAFE_DIV_EPSILON), 0.0);
+    float th = safe_log(safe_divide(truth.h*h, biases[2*n + 1], SAFE_DIV_EPSILON), 0.0);
 
     delta[index + 0*stride] = scale * (tx - x[index + 0*stride]);
     delta[index + 1*stride] = scale * (ty - x[index + 1*stride]);
@@ -249,19 +252,23 @@ void correct_yolo_boxes(detection *dets, int n, int w, int h, int netw, int neth
     int i;
     int new_w=0;
     int new_h=0;
-    if (((float)netw/w) < ((float)neth/h)) {
+    // Safe division for aspect ratio comparison
+    if (safe_divide((float)netw, w, 0) < safe_divide((float)neth, h, 0)) {
         new_w = netw;
-        new_h = (h * netw)/w;
+        new_h = safe_divide(h * netw, w, neth);  // Default to neth if w is zero
     } else {
         new_h = neth;
-        new_w = (w * neth)/h;
+        new_w = safe_divide(w * neth, h, netw);  // Default to netw if h is zero
     }
     for (i = 0; i < n; ++i){
         box b = dets[i].bbox;
-        b.x =  (b.x - (netw - new_w)/2./netw) / ((float)new_w/netw); 
-        b.y =  (b.y - (neth - new_h)/2./neth) / ((float)new_h/neth); 
-        b.w *= (float)netw/new_w;
-        b.h *= (float)neth/new_h;
+        // Safe divisions for box corrections
+        float netw_ratio = safe_divide((float)new_w, netw, 1.0);
+        float neth_ratio = safe_divide((float)new_h, neth, 1.0);
+        b.x = safe_divide(b.x - safe_divide(netw - new_w, 2.0 * netw, 0), netw_ratio, 0);
+        b.y = safe_divide(b.y - safe_divide(neth - new_h, 2.0 * neth, 0), neth_ratio, 0);
+        b.w *= safe_divide((float)netw, new_w, 1.0);
+        b.h *= safe_divide((float)neth, new_h, 1.0);
         if(!relative){
             b.x *= w;
             b.w *= w;
