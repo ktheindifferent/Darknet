@@ -262,9 +262,9 @@ void run_lsd(int argc, char **argv)
         fprintf(stderr, "done\n");
         char buff[256];
         if (prefix){
-            sprintf(buff, "%s/%s_%s_%d_%06d",prefix, imbase, cfgbase, max_layer, e);
+            snprintf(buff, sizeof(buff), "%s/%s_%s_%d_%06d",prefix, imbase, cfgbase, max_layer, e);
         }else{
-            sprintf(buff, "%s_%s_%d_%06d",imbase, cfgbase, max_layer, e);
+            snprintf(buff, sizeof(buff), "%s_%s_%d_%06d",imbase, cfgbase, max_layer, e);
         }
         printf("%d %s\n", e, buff);
         save_image(im, buff);
@@ -391,9 +391,9 @@ void run_nightmare(int argc, char **argv)
         }
         char buff[256];
         if (prefix){
-            sprintf(buff, "%s/%s_%s_%d_%06d",prefix, imbase, cfgbase, max_layer, e);
+            snprintf(buff, sizeof(buff), "%s/%s_%s_%d_%06d",prefix, imbase, cfgbase, max_layer, e);
         }else{
-            sprintf(buff, "%s_%s_%d_%06d",imbase, cfgbase, max_layer, e);
+            snprintf(buff, sizeof(buff), "%s_%s_%d_%06d",imbase, cfgbase, max_layer, e);
         }
         printf("%d %s\n", e, buff);
         save_image(im, buff);

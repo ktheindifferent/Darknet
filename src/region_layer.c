@@ -25,14 +25,14 @@ layer make_region_layer(int batch, int w, int h, int n, int classes, int coords)
     l.out_c = l.c;
     l.classes = classes;
     l.coords = coords;
-    l.cost = calloc(1, sizeof(float));
-    l.biases = calloc(n*2, sizeof(float));
-    l.bias_updates = calloc(n*2, sizeof(float));
+    l.cost = safe_calloc(1, sizeof(float));
+    l.biases = safe_calloc(n*2, sizeof(float));
+    l.bias_updates = safe_calloc(n*2, sizeof(float));
     l.outputs = h*w*n*(classes + coords + 1);
     l.inputs = l.outputs;
     l.truths = 30*(l.coords + 1);
-    l.delta = calloc(batch*l.outputs, sizeof(float));
-    l.output = calloc(batch*l.outputs, sizeof(float));
+    l.delta = safe_calloc(batch*l.outputs, sizeof(float));
+    l.output = safe_calloc(batch*l.outputs, sizeof(float));
     int i;
     for(i = 0; i < n*2; ++i){
         l.biases[i] = .5;
@@ -61,8 +61,8 @@ void resize_region_layer(layer *l, int w, int h)
     l->outputs = h*w*l->n*(l->classes + l->coords + 1);
     l->inputs = l->outputs;
 
-    l->output = realloc(l->output, l->batch*l->outputs*sizeof(float));
-    l->delta = realloc(l->delta, l->batch*l->outputs*sizeof(float));
+    l->output = safe_realloc(l->output, l->batch*l->outputs*sizeof(float));
+    l->delta = safe_realloc(l->delta, l->batch*l->outputs*sizeof(float));
 
 #ifdef GPU
     cuda_free(l->delta_gpu);

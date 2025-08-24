@@ -67,13 +67,13 @@ void train_writing(char *cfgfile, char *weightfile)
         free_data(train);
         if(get_current_batch(net)%100 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s_batch_%ld.weights", backup_directory, base, get_current_batch(net));
+            snprintf(buff, sizeof(buff), "%s/%s_batch_%ld.weights", backup_directory, base, get_current_batch(net));
             save_weights(net, buff);
         }
         if(*net.seen/N > epoch){
             epoch = *net.seen/N;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights",backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights",backup_directory,base, epoch);
             save_weights(net, buff);
         }
     }

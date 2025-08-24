@@ -1,4 +1,5 @@
 #include "darknet.h"
+#include "utils.h"
 
 #include <assert.h>
 #include <math.h>
@@ -19,7 +20,7 @@ char *fgetgo(FILE *fp)
 {
     if(feof(fp)) return 0;
     size_t size = 96;
-    char *line = malloc(size*sizeof(char));
+    char *line = safe_malloc(size*sizeof(char));
     if(size != fread(line, sizeof(char), size, fp)){
         free(line);
         return 0;
@@ -187,22 +188,22 @@ void train_go(char *cfgfile, char *weightfile, char *filename, int *gpus, int ng
         if(*net->seen/N > epoch){
             epoch = *net->seen/N;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory,base, epoch);
             save_weights(net, buff);
 
         }
         if(get_current_batch(net)%1000 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup",backup_directory,base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup",backup_directory,base);
             save_weights(net, buff);
         }
         if(get_current_batch(net)%10000 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s_%ld.backup",backup_directory,base,get_current_batch(net));
+            snprintf(buff, sizeof(buff), "%s/%s_%ld.backup",backup_directory,base,get_current_batch(net));
             save_weights(net, buff);
         }
     }
-    sprintf(buff, "%s/%s.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s.weights", backup_directory, base);
     save_weights(net, buff);
 
     free_network(net);
@@ -845,7 +846,7 @@ void engine_go(char *filename, char *weightfile, int mcts_iters, float secs, flo
         if (feof(stdin)) break;
         fprintf(stderr, "%s\n", buff);
         char ids[256];
-        sprintf(ids, "%d", id);
+        snprintf(ids, sizeof(ids), "%d", id);
         //fprintf(stderr, "%s\n", buff);
         if (!has_id) ids[0] = 0;
         if (!strcmp(buff, "protocol_version")){

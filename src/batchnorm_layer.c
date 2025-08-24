@@ -2,6 +2,7 @@
 #include "batchnorm_layer.h"
 #include "blas.h"
 #include <stdio.h>
+#include "utils.h"
 
 layer make_batchnorm_layer(int batch, int w, int h, int c)
 {
@@ -12,25 +13,25 @@ layer make_batchnorm_layer(int batch, int w, int h, int c)
     l.h = l.out_h = h;
     l.w = l.out_w = w;
     l.c = l.out_c = c;
-    l.output = calloc(h * w * c * batch, sizeof(float));
-    l.delta  = calloc(h * w * c * batch, sizeof(float));
+    l.output = safe_calloc(h * w * c * batch, sizeof(float));
+    l.delta  = safe_calloc(h * w * c * batch, sizeof(float));
     l.inputs = w*h*c;
     l.outputs = l.inputs;
 
-    l.scales = calloc(c, sizeof(float));
-    l.scale_updates = calloc(c, sizeof(float));
-    l.biases = calloc(c, sizeof(float));
-    l.bias_updates = calloc(c, sizeof(float));
+    l.scales = safe_calloc(c, sizeof(float));
+    l.scale_updates = safe_calloc(c, sizeof(float));
+    l.biases = safe_calloc(c, sizeof(float));
+    l.bias_updates = safe_calloc(c, sizeof(float));
     int i;
     for(i = 0; i < c; ++i){
         l.scales[i] = 1;
     }
 
-    l.mean = calloc(c, sizeof(float));
-    l.variance = calloc(c, sizeof(float));
+    l.mean = safe_calloc(c, sizeof(float));
+    l.variance = safe_calloc(c, sizeof(float));
 
-    l.rolling_mean = calloc(c, sizeof(float));
-    l.rolling_variance = calloc(c, sizeof(float));
+    l.rolling_mean = safe_calloc(c, sizeof(float));
+    l.rolling_variance = safe_calloc(c, sizeof(float));
 
     l.forward = forward_batchnorm_layer;
     l.backward = backward_batchnorm_layer;

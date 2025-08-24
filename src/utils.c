@@ -10,6 +10,7 @@
 #include <sys/time.h>
 
 #include "utils.h"
+#include "safe_math.h"
 #include "constants.h"
 
 
@@ -98,7 +99,7 @@ void shuffle(void *arr, size_t n, size_t size)
     size_t i;
     void *swp = calloc(1, size);
     for(i = 0; i < n-1; ++i){
-        size_t j = i + rand()/(RAND_MAX / (n-i)+1);
+        size_t j = i + safe_rand_divide(n-i);
         memcpy(swp,          arr+(j*size), size);
         memcpy(arr+(j*size), arr+(i*size), size);
         memcpy(arr+(i*size), swp,          size);
@@ -303,6 +304,33 @@ void file_error(char *s)
     exit(0);
 }
 
+void *safe_malloc(size_t size)
+{
+    void *ptr = malloc(size);
+    if (!ptr && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
+void *safe_calloc(size_t nmemb, size_t size)
+{
+    void *ptr = calloc(nmemb, size);
+    if (!ptr && nmemb != 0 && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
+void *safe_realloc(void *old_ptr, size_t size)
+{
+    void *ptr = realloc(old_ptr, size);
+    if (!ptr && size != 0) {
+        malloc_error();
+    }
+    return ptr;
+}
+
 list *split_str(char *s, char delim)
 {
     size_t i;
@@ -355,7 +383,7 @@ char *fgetl(FILE *fp)
 {
     if(feof(fp)) return 0;
     size_t size = 512;
-    char *line = malloc(size*sizeof(char));
+    char *line = safe_malloc(size*sizeof(char));
     if(!fgets(line, size, fp)){
         free(line);
         return 0;
@@ -366,11 +394,7 @@ char *fgetl(FILE *fp)
     while((line[curr-1] != '\n') && !feof(fp)){
         if(curr == size-1){
             size *= 2;
-            line = realloc(line, size*sizeof(char));
-            if(!line) {
-                printf("%ld\n", size);
-                malloc_error();
-            }
+            line = safe_realloc(line, size*sizeof(char));
         }
         size_t readsize = size-curr;
         if(readsize > INT_MAX) readsize = INT_MAX-1;
@@ -441,7 +465,7 @@ void write_all(int fd, char *buffer, size_t bytes)
 
 char *copy_string(char *s)
 {
-    char *copy = malloc(strlen(s)+1);
+    char *copy = safe_malloc(strlen(s)+1);
     strncpy(copy, s, strlen(s)+1);
     return copy;
 }
@@ -505,7 +529,8 @@ float sum_array(float *a, int n)
 
 float mean_array(float *a, int n)
 {
-    return sum_array(a,n)/n;
+    if (n <= 0) return 0.0;
+    return safe_divide(sum_array(a,n), n, 0.0);
 }
 
 void mean_arrays(float **a, int n, int els, float *avg)
@@ -513,13 +538,17 @@ void mean_arrays(float **a, int n, int els, float *avg)
     int i;
     int j;
     memset(avg, 0, els*sizeof(float));
+    // Check for empty array
+    if (n <= 0 || els <= 0) {
+        return;
+    }
     for(j = 0; j < n; ++j){
         for(i = 0; i < els; ++i){
             avg[i] += a[j][i];
         }
     }
     for(i = 0; i < els; ++i){
-        avg[i] /= n;
+        avg[i] = safe_divide(avg[i], n, 0.0);
     }
 }
 
@@ -534,9 +563,10 @@ float variance_array(float *a, int n)
 {
     int i;
     float sum = 0;
+    if (n <= 0) return 0.0;
     float mean = mean_array(a, n);
     for(i = 0; i < n; ++i) sum += (a[i] - mean)*(a[i]-mean);
-    float variance = sum/n;
+    float variance = safe_divide(sum, n, 0.0);
     return variance;
 }
 
@@ -566,17 +596,27 @@ float mse_array(float *a, int n)
 {
     int i;
     float sum = 0;
+    if (n <= 0) return 0.0;
     for(i = 0; i < n; ++i) sum += a[i]*a[i];
-    return sqrt(sum/n);
+    return safe_sqrt_divide(sum, n, 0.0);
 }
 
 void normalize_array(float *a, int n)
 {
     int i;
     float mu = mean_array(a,n);
-    float sigma = sqrt(variance_array(a,n));
+    float variance = variance_array(a,n);
+    if (variance < 0) variance = 0;  // Protect against negative variance
+    float sigma = sqrt(variance);
+    
+    // Avoid division by zero when sigma is too small
+    if (sigma < SAFE_DIV_EPSILON) {
+        // Data has no variance, cannot normalize
+        return;
+    }
+    
     for(i = 0; i < n; ++i){
-        a[i] = (a[i] - mu)/sigma;
+        a[i] = safe_divide(a[i] - mu, sigma, 0.0);
     }
     mu = mean_array(a,n);
     sigma = sqrt(variance_array(a,n));

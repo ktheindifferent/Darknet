@@ -132,7 +132,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             if(ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(net, buff);
         }
         if(i%10000==0 || (i < 1000 && i%100 == 0)){
@@ -140,7 +140,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
             if(ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
         }
         free_data(train);
@@ -149,7 +149,7 @@ void train_detector(char *datacfg, char *cfgfile, char *weightfile, int *gpus, i
     if(ngpus != 1) sync_nets(nets, ngpus, 0);
 #endif
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(net, buff);
 }
 
@@ -238,10 +238,10 @@ char *detection_to_json(detection *dets, int nboxes, int classes, char **names, 
     char *send_buf = (char *)calloc(1024, sizeof(char));
     if (!send_buf) return 0;
     if (filename) {
-        sprintf(send_buf, "{\n \"frame_id\":%lld, \n \"filename\":\"%s\", \n \"objects\": [ \n", frame_id, filename);
+        snprintf(send_buf, 1024, "{\n \"frame_id\":%lld, \n \"filename\":\"%s\", \n \"objects\": [ \n", frame_id, filename);
     }
     else {
-        sprintf(send_buf, "{\n \"frame_id\":%lld, \n \"objects\": [ \n", frame_id);
+        snprintf(send_buf, 1024, "{\n \"frame_id\":%lld, \n \"objects\": [ \n", frame_id);
     }
 
     int i, j;
@@ -255,10 +255,10 @@ char *detection_to_json(detection *dets, int nboxes, int classes, char **names, 
                 class_id = j;
                 char *buf = (char *)calloc(2048, sizeof(char));
                 if (!buf) return 0;
-                // sprintf(buf, "{\"class_id\":%d, \"name\":%s, \"bbox\":[%f, %f, %f, %f], \"score\":%f}",
+                // snprintf(buf, 2048, "{\"class_id\":%d, \"name\":%s, \"bbox\":[%f, %f, %f, %f], \"score\":%f}",
                 //    j, names[j], dets[i].bbox.x * w, dets[i].bbox.y * h, dets[i].bbox.w * w, dets[i].bbox.h * h, dets[i].prob[j]);
 
-                sprintf(buf, "  {\"class_id\":%d, \"name\":\"%s\", \"coordinates\":{\"x\":%f, \"y\":%f, \"width\":%f, \"height\":%f}, \"confidence\":%f}",
+                snprintf(buf, 2048, "  {\"class_id\":%d, \"name\":\"%s\", \"coordinates\":{\"x\":%f, \"y\":%f, \"width\":%f, \"height\":%f}, \"confidence\":%f}",
                     j, names[j], dets[i].bbox.x * w, dets[i].bbox.y * h, dets[i].bbox.w * w, dets[i].bbox.h * h, dets[i].prob[j]);
 
                 int send_buf_len = strlen(send_buf);
@@ -784,7 +784,7 @@ void extract_detector(char *datacfg, char *cfgfile, char *weightfile, int cam_in
                 int dy  = b.y*in.h-size/2.;
                 image bim = crop_image(in, dx, dy, size, size);
                 char buff[2048];
-                sprintf(buff, "results/extract/%07d", count);
+                snprintf(buff, sizeof(buff), "results/extract/%07d", count);
                 ++count;
                 save_image(bim, buff);
                 free_image(bim);

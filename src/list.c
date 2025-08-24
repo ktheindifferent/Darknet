@@ -1,10 +1,11 @@
 #include <stdlib.h>
 #include <string.h>
 #include "list.h"
+#include "utils.h"
 
 list *make_list()
 {
-	list *l = malloc(sizeof(list));
+	list *l = safe_malloc(sizeof(list));
 	l->size = 0;
 	l->front = 0;
 	l->back = 0;
@@ -39,7 +40,7 @@ void *list_pop(list *l){
 
 void list_insert(list *l, void *val)
 {
-	node *new = malloc(sizeof(node));
+	node *new = safe_malloc(sizeof(node));
 	new->val = val;
 	new->next = 0;
 
