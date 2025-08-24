@@ -26,17 +26,17 @@ void train_cifar(char *cfgfile, char *weightfile)
         if(*net->seen/N > epoch){
             epoch = *net->seen/N;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights",backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights",backup_directory,base, epoch);
             save_weights(net, buff);
         }
         if(get_current_batch(net)%100 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup",backup_directory,base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup",backup_directory,base);
             save_weights(net, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s.weights", backup_directory, base);
     save_weights(net, buff);
 
     free_network(net);
@@ -79,17 +79,17 @@ void train_cifar_distill(char *cfgfile, char *weightfile)
         if(*net->seen/N > epoch){
             epoch = *net->seen/N;
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights",backup_directory,base, epoch);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights",backup_directory,base, epoch);
             save_weights(net, buff);
         }
         if(get_current_batch(net)%100 == 0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup",backup_directory,base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup",backup_directory,base);
             save_weights(net, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s.weights", backup_directory, base);
     save_weights(net, buff);
 
     free_network(net);
@@ -156,14 +156,14 @@ char *labels[] = {"airplane","automobile","bird","cat","deer","dog","frog","hors
         image im = float_to_image(32, 32, 3, train.X.vals[i]);
         int class = max_index(train.y.vals[i], 10);
         char buff[256];
-        sprintf(buff, "data/cifar/train/%d_%s",i,labels[class]);
+        snprintf(buff, sizeof(buff), "data/cifar/train/%d_%s",i,labels[class]);
         save_image_options(im, buff, PNG, 0);
     }
     for(i = 0; i < test.X.rows; ++i){
         image im = float_to_image(32, 32, 3, test.X.vals[i]);
         int class = max_index(test.y.vals[i], 10);
         char buff[256];
-        sprintf(buff, "data/cifar/test/%d_%s",i,labels[class]);
+        snprintf(buff, sizeof(buff), "data/cifar/test/%d_%s",i,labels[class]);
         save_image_options(im, buff, PNG, 0);
     }
 }

@@ -1562,7 +1562,7 @@ data load_all_cifar10()
 
     for(b = 0; b < 5; ++b){
         char buff[256];
-        sprintf(buff, "data/cifar/cifar-10-batches-bin/data_batch_%d.bin", b+1);
+        snprintf(buff, sizeof(buff), "data/cifar/cifar-10-batches-bin/data_batch_%d.bin", b+1);
         FILE *fp = fopen(buff, "rb");
         if(!fp) file_error(buff);
         for(i = 0; i < 10000; ++i){

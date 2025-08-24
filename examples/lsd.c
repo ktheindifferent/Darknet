@@ -175,16 +175,16 @@ void train_lsd3(char *fcfg, char *fweight, char *gcfg, char *gweight, char *acfg
         printf("%d: gen: %f, adv: %f | gen_avg: %f, adv_avg: %f, %f rate, %lf seconds, %d images\n", i, floss, aloss, floss_avg, aloss_avg, get_current_rate(gnet), sec(clock()-time), i*imgs);
         if(i%1000==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, gbase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, gbase, i);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
             save_weights(anet, buff);
         }
         if(i%100==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, gbase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, gbase);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s.backup", backup_directory, abase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
             save_weights(anet, buff);
         }
     }
@@ -364,21 +364,21 @@ void train_pix2pix(char *cfg, char *weight, char *acfg, char *aweight, int clear
         printf("%d: gen: %f, adv: %f | gen_avg: %f, adv_avg: %f, %f rate, %lf seconds, %d images\n", i, gloss, aloss, gloss_avg, aloss_avg, get_current_rate(net), sec(clock()-time), i*imgs);
         if(i%1000==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
             save_weights(anet, buff);
         }
         if(i%100==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(net, buff);
-            sprintf(buff, "%s/%s.backup", backup_directory, abase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
             save_weights(anet, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(net, buff);
 #endif
 }
@@ -459,7 +459,7 @@ void inter_dcgan(char *cfgfile, char *weightfile)
         normalize_image(out);
         printf("%s: Predicted in %f seconds.\n", input, sec(clock()-time));
         //char buff[256];
-        sprintf(buff, "out%05d", c);
+        snprintf(buff, sizeof(buff), "out%05d", c);
         save_image(out, "out");
         save_image(out, buff);
         show_image(out, "out", 0);
@@ -650,21 +650,21 @@ void train_prog(char *cfg, char *weight, char *acfg, char *aweight, int clear, i
         printf("%d: adv: %f | adv_avg: %f, %f rate, %lf seconds, %d images\n", i, aloss, aloss_avg, get_current_rate(gnet), sec(clock()-time), i*imgs);
         if(i%10000==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
             save_weights(anet, buff);
         }
         if(i%1000==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s.backup", backup_directory, abase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
             save_weights(anet, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(gnet, buff);
 #endif
 }
@@ -844,21 +844,21 @@ void train_dcgan(char *cfg, char *weight, char *acfg, char *aweight, int clear, 
         printf("%d: adv: %f | adv_avg: %f, %f rate, %lf seconds, %d images\n", i, aloss, aloss_avg, get_current_rate(gnet), sec(clock()-time), i*imgs);
         if(i%10000==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
             save_weights(anet, buff);
         }
         if(i%1000==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(gnet, buff);
-            sprintf(buff, "%s/%s.backup", backup_directory, abase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
             save_weights(anet, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(gnet, buff);
 #endif
 }
@@ -1015,21 +1015,21 @@ void train_colorizer(char *cfg, char *weight, char *acfg, char *aweight, int cle
         printf("%d: gen: %f, adv: %f | gen_avg: %f, adv_avg: %f, %f rate, %lf seconds, %d images\n", i, gloss, aloss, gloss_avg, aloss_avg, get_current_rate(net), sec(clock()-time), i*imgs);
         if(i%1000==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
             save_weights(anet, buff);
         }
         if(i%100==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(net, buff);
-            sprintf(buff, "%s/%s.backup", backup_directory, abase);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
             save_weights(anet, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(net, buff);
 #endif
 }
@@ -1190,21 +1190,21 @@ while (get_current_batch(net) < net->max_batches) {
     printf("%d: gen: %f, adv: %f | gen_avg: %f, adv_avg: %f, %f rate, %lf seconds, %d images\n", i, gloss, aloss, gloss_avg, aloss_avg, get_current_rate(net), sec(clock()-time), i*imgs);
     if(i%1000==0){
         char buff[256];
-        sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+        snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
         save_weights(net, buff);
-        sprintf(buff, "%s/%s_%d.weights", backup_directory, abase, i);
+        snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, abase, i);
         save_weights(anet, buff);
     }
     if(i%100==0){
         char buff[256];
-        sprintf(buff, "%s/%s.backup", backup_directory, base);
+        snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
         save_weights(net, buff);
-        sprintf(buff, "%s/%s.backup", backup_directory, abase);
+        snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, abase);
         save_weights(anet, buff);
     }
 }
 char buff[256];
-sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
 save_weights(net, buff);
 #endif
 }
@@ -1275,18 +1275,18 @@ avg_loss = avg_loss*.9 + loss*.1;
 printf("%d: %f, %f avg, %f rate, %lf seconds, %d images\n", i, loss, avg_loss, get_current_rate(net), sec(clock()-time), i*imgs);
 if(i%1000==0){
 char buff[256];
-sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
 save_weights(net, buff);
 }
 if(i%100==0){
 char buff[256];
-sprintf(buff, "%s/%s.backup", backup_directory, base);
+snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
 save_weights(net, buff);
 }
 free_data(train);
 }
 char buff[256];
-sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
 save_weights(net, buff);
 }
 */

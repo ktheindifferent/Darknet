@@ -535,7 +535,7 @@ void visualize_network(network *net)
     int i;
     char buff[256];
     for(i = 0; i < net->n; ++i){
-        sprintf(buff, "Layer %d", i);
+        snprintf(buff, sizeof(buff), "Layer %d", i);
         layer l = net->layers[i];
         if(l.type == CONVOLUTIONAL){
             prev = visualize_convolutional_layer(l, buff, prev);
