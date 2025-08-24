@@ -16,7 +16,7 @@ void free_matrix(matrix m)
 
 float matrix_topk_accuracy(matrix truth, matrix guess, int k)
 {
-    int *indexes = calloc(k, sizeof(int));
+    int *indexes = safe_calloc(k, sizeof(int));
     int n = truth.cols;
     int i,j;
     int correct = 0;

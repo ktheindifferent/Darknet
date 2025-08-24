@@ -21,7 +21,7 @@ IMAGE_OBJS=$(OBJDIR)image.o $(OBJDIR)utils.o $(OBJDIR)blas.o $(OBJDIR)list.o
 BLAS_OBJS=$(OBJDIR)blas.o
 
 # Test executables
-TESTS=test_utils test_data test_network test_box test_image test_blas
+TESTS=test_utils test_data test_network test_box test_image test_blas test_memory
 
 # Ensure we have obj directory
 $(shell mkdir -p $(OBJDIR))
@@ -44,6 +44,9 @@ test_image: test_image.c $(IMAGE_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 test_blas: test_blas.c $(BLAS_OBJS)
+	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
+
+test_memory: test_memory.c $(UTILS_OBJS) $(OBJDIR)matrix.o $(OBJDIR)option_list.o $(OBJDIR)blas.o $(OBJDIR)tree.o $(DATA_OBJS)
 	$(CC) $(CFLAGS) $^ -o $@ $(LDFLAGS)
 
 # Run all tests

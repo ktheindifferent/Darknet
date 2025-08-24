@@ -111,17 +111,17 @@ void train_vid_rnn(char *cfgfile, char *weightfile)
         fprintf(stderr, "%d: %f, %f avg, %f rate, %lf seconds\n", i, loss, avg_loss, get_current_rate(net), sec(clock()-time));
         if(i%100==0){
             char buff[256];
-            sprintf(buff, "%s/%s_%d.weights", backup_directory, base, i);
+            snprintf(buff, sizeof(buff), "%s/%s_%d.weights", backup_directory, base, i);
             save_weights(net, buff);
         }
         if(i%10==0){
             char buff[256];
-            sprintf(buff, "%s/%s.backup", backup_directory, base);
+            snprintf(buff, sizeof(buff), "%s/%s.backup", backup_directory, base);
             save_weights(net, buff);
         }
     }
     char buff[256];
-    sprintf(buff, "%s/%s_final.weights", backup_directory, base);
+    snprintf(buff, sizeof(buff), "%s/%s_final.weights", backup_directory, base);
     save_weights(net, buff);
 }
 
@@ -138,7 +138,7 @@ image save_reconstruction(network net, image *init, float *feat, char *name, int
     image update = make_image(net.w, net.h, 3);
     reconstruct_picture(net, feat, recon, update, .01, .9, .1, 2, 50);
     char buff[256];
-    sprintf(buff, "%s%d", name, i);
+    snprintf(buff, sizeof(buff), "%s%d", name, i);
     save_image(recon, buff);
     free_image(update);
     return recon;

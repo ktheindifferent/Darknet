@@ -49,11 +49,11 @@ layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size
     l.nweights = c*n*size*size;
     l.nbiases = n;
 
-    l.weights = calloc(c*n*size*size, sizeof(float));
-    l.weight_updates = calloc(c*n*size*size, sizeof(float));
+    l.weights = safe_calloc(c*n*size*size, sizeof(float));
+    l.weight_updates = safe_calloc(c*n*size*size, sizeof(float));
 
-    l.biases = calloc(n, sizeof(float));
-    l.bias_updates = calloc(n, sizeof(float));
+    l.biases = safe_calloc(n, sizeof(float));
+    l.bias_updates = safe_calloc(n, sizeof(float));
     //float scale = n/(size*size*c);
     //printf("scale: %f\n", scale);
     float scale = .02;
@@ -72,8 +72,8 @@ layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size
 
     scal_cpu(l.nweights, (float)l.out_w*l.out_h/(l.w*l.h), l.weights, 1);
 
-    l.output = calloc(l.batch*l.outputs, sizeof(float));
-    l.delta  = calloc(l.batch*l.outputs, sizeof(float));
+    l.output = safe_calloc(l.batch*l.outputs, sizeof(float));
+    l.delta  = safe_calloc(l.batch*l.outputs, sizeof(float));
 
     l.forward = forward_deconvolutional_layer;
     l.backward = backward_deconvolutional_layer;
@@ -82,30 +82,30 @@ layer make_deconvolutional_layer(int batch, int h, int w, int c, int n, int size
     l.batch_normalize = batch_normalize;
 
     if(batch_normalize){
-        l.scales = calloc(n, sizeof(float));
-        l.scale_updates = calloc(n, sizeof(float));
+        l.scales = safe_calloc(n, sizeof(float));
+        l.scale_updates = safe_calloc(n, sizeof(float));
         for(i = 0; i < n; ++i){
             l.scales[i] = 1;
         }
 
-        l.mean = calloc(n, sizeof(float));
-        l.variance = calloc(n, sizeof(float));
+        l.mean = safe_calloc(n, sizeof(float));
+        l.variance = safe_calloc(n, sizeof(float));
 
-        l.mean_delta = calloc(n, sizeof(float));
-        l.variance_delta = calloc(n, sizeof(float));
+        l.mean_delta = safe_calloc(n, sizeof(float));
+        l.variance_delta = safe_calloc(n, sizeof(float));
 
-        l.rolling_mean = calloc(n, sizeof(float));
-        l.rolling_variance = calloc(n, sizeof(float));
-        l.x = calloc(l.batch*l.outputs, sizeof(float));
-        l.x_norm = calloc(l.batch*l.outputs, sizeof(float));
+        l.rolling_mean = safe_calloc(n, sizeof(float));
+        l.rolling_variance = safe_calloc(n, sizeof(float));
+        l.x = safe_calloc(l.batch*l.outputs, sizeof(float));
+        l.x_norm = safe_calloc(l.batch*l.outputs, sizeof(float));
     }
     if(adam){
-        l.m = calloc(c*n*size*size, sizeof(float));
-        l.v = calloc(c*n*size*size, sizeof(float));
-        l.bias_m = calloc(n, sizeof(float));
-        l.scale_m = calloc(n, sizeof(float));
-        l.bias_v = calloc(n, sizeof(float));
-        l.scale_v = calloc(n, sizeof(float));
+        l.m = safe_calloc(c*n*size*size, sizeof(float));
+        l.v = safe_calloc(c*n*size*size, sizeof(float));
+        l.bias_m = safe_calloc(n, sizeof(float));
+        l.scale_m = safe_calloc(n, sizeof(float));
+        l.bias_v = safe_calloc(n, sizeof(float));
+        l.scale_v = safe_calloc(n, sizeof(float));
     }
 
 #ifdef GPU
@@ -190,11 +190,11 @@ void resize_deconvolutional_layer(layer *l, int h, int w)
     l->outputs = l->out_h * l->out_w * l->out_c;
     l->inputs = l->w * l->h * l->c;
 
-    l->output = realloc(l->output, l->batch*l->outputs*sizeof(float));
-    l->delta  = realloc(l->delta,  l->batch*l->outputs*sizeof(float));
+    l->output = safe_realloc(l->output, l->batch*l->outputs*sizeof(float));
+    l->delta  = safe_realloc(l->delta,  l->batch*l->outputs*sizeof(float));
     if(l->batch_normalize){
-        l->x = realloc(l->x, l->batch*l->outputs*sizeof(float));
-        l->x_norm  = realloc(l->x_norm, l->batch*l->outputs*sizeof(float));
+        l->x = safe_realloc(l->x, l->batch*l->outputs*sizeof(float));
+        l->x_norm  = safe_realloc(l->x_norm, l->batch*l->outputs*sizeof(float));
     }
 
 #ifdef GPU

@@ -385,7 +385,7 @@ void mkimg(char *cfgfile, char *weightfile, int h, int w, int num, char *prefix)
             free_image(r);
         }
         char buff[256];
-        sprintf(buff, "%s/gen_%d", prefix, z);
+        snprintf(buff, sizeof(buff), "%s/gen_%d", prefix, z);
         save_image(im, buff);
         free_image(im);
     }

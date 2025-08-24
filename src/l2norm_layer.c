@@ -8,6 +8,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
+#include "utils.h"
 
 layer make_l2norm_layer(int batch, int inputs)
 {
@@ -17,9 +18,9 @@ layer make_l2norm_layer(int batch, int inputs)
     l.batch = batch;
     l.inputs = inputs;
     l.outputs = inputs;
-    l.output = calloc(inputs*batch, sizeof(float));
-    l.scales = calloc(inputs*batch, sizeof(float));
-    l.delta = calloc(inputs*batch, sizeof(float));
+    l.output = safe_calloc(inputs*batch, sizeof(float));
+    l.scales = safe_calloc(inputs*batch, sizeof(float));
+    l.delta = safe_calloc(inputs*batch, sizeof(float));
 
     l.forward = forward_l2norm_layer;
     l.backward = backward_l2norm_layer;
